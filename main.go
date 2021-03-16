@@ -113,6 +113,7 @@ var (
 	activeNodeRegistryCacheStorage, pendingNodeRegistryCacheStorage        storage.CacheStorageInterface
 	nodeAddressInfoStorage                                                 storage.CacheStorageInterface
 	scrambleNodeStorage, mainBlocksStorage, spineBlocksStorage             storage.CacheStackStorageInterface
+	priorityPeersDestinationCacheHybridStorage                             storage.HybridCacheStorageInterface
 	blockStateStorages                                                     = make(map[int32]storage.CacheStorageInterface)
 	snapshotChunkUtil                                                      util.ChunkUtilInterface
 	p2pServiceInstance                                                     p2p.Peer2PeerServiceInterface
@@ -381,6 +382,9 @@ func initiateMainInstance() {
 			})
 		},
 	)
+	// store priority peer destinations every block
+	priorityPeersDestinationCacheHybridStorage = storage.NewPriorityPeersDestinationCacheHybridStorage()
+
 	// initialize services
 	blockchainStatusService = service.NewBlockchainStatusService(true, loggerCoreService)
 	feeScaleService = fee.NewFeeScaleService(query.NewFeeScaleQuery(), mainBlockStateStorage, queryExecutor)
@@ -474,6 +478,7 @@ func initiateMainInstance() {
 		batchReceiptCacheStorage,
 		scrambleNodeService,
 		mainBlocksStorage,
+		priorityPeersDestinationCacheHybridStorage,
 		util.NewMerkleRoot(),
 		nodeConfigurationService,
 		loggerCoreService,
@@ -626,6 +631,7 @@ func initiateMainInstance() {
 		query.GetPruneQuery(mainchain),
 		mainBlockStateStorage,
 		mainBlocksStorage,
+		priorityPeersDestinationCacheHybridStorage,
 		blockchainStatusService,
 		scrambleNodeService,
 	)
@@ -887,6 +893,33 @@ func startNodeMonitoring() {
 	}
 }
 
+func initializePriorityPeersDestinationCacheHybridStorage(mainBlockService *service.BlockService, lastHeight uint32) error {
+	var (
+		firstHeight uint32
+		blocks      []*model.Block
+		err         error
+	)
+	if lastHeight > constant.MinRollbackBlocks {
+		firstHeight = lastHeight - constant.MinRollbackBlocks
+	}
+
+	blocks, err = mainBlockService.GetBlocksFromHeight(firstHeight, lastHeight, false)
+	if err != nil {
+		return err
+	}
+
+	for _, block := range blocks {
+		priorityPeersAtHeight, err := mainBlockService.ReceiptService.GetPriorityPeersAtHeight(block.GetBlocksmithPublicKey(), block.GetHeight())
+		if err != nil {
+			return err
+		}
+		for _, priorityPeer := range priorityPeersAtHeight {
+			priorityPeersDestinationCacheHybridStorage.SetItem(hex.EncodeToString(priorityPeer.GetInfo().GetPublicKey()), block.GetHeight())
+		}
+	}
+	return nil
+}
+
 func startMainchain() {
 	var (
 		lastBlockAtStart *model.Block
@@ -965,6 +998,14 @@ func startMainchain() {
 	err = scrambleNodeService.InitializeScrambleCache(lastBlockAtStart.GetHeight())
 	if err != nil {
 		loggerCoreService.Fatalf("InitializeScrambleNodeFail - %v", err)
+		os.Exit(1)
+	}
+
+	// initialize priority peers destination cache
+	// this needs to be performed after the scrambled nodes cache has been initiated
+	err = initializePriorityPeersDestinationCacheHybridStorage(mainchainBlockService, lastBlockAtStart.GetHeight())
+	if err != nil {
+		loggerCoreService.Fatal(err)
 		os.Exit(1)
 	}
 

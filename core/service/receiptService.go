@@ -121,6 +121,8 @@ type (
 			nodeSecretPhrase string,
 			datumType uint32,
 		) (*model.Receipt, error)
+		// GetPriorityPeersAtHeight compute the set of assigned receivers (priority peers) at a given block height
+		GetPriorityPeersAtHeight(nodePubKey []byte, blockHeight uint32) (map[string]*model.Peer, error)
 		// CheckDuplication to check duplication of *model.BatchReceipt when get response from send block and send transaction
 		CheckDuplication(publicKey []byte, datumHash []byte) (err error)
 		StoreReceipt(receipt *model.Receipt, senderPublicKey []byte, chaintype chaintype.ChainType) error
@@ -128,22 +130,23 @@ type (
 	}
 
 	ReceiptService struct {
-		NodeReceiptQuery         query.BatchReceiptQueryInterface
-		MerkleTreeQuery          query.MerkleTreeQueryInterface
-		NodeRegistrationQuery    query.NodeRegistrationQueryInterface
-		BlockQuery               query.BlockQueryInterface
-		TransactionQuery         query.TransactionQueryInterface
-		QueryExecutor            query.ExecutorInterface
-		NodeRegistrationService  NodeRegistrationServiceInterface
-		Signature                crypto.SignatureInterface
-		PublishedReceiptQuery    query.PublishedReceiptQueryInterface
-		ReceiptUtil              coreUtil.ReceiptUtilInterface
-		MainBlockStateStorage    storage.CacheStorageInterface
-		ScrambleNodeService      ScrambleNodeServiceInterface
-		ReceiptReminderStorage   storage.CacheStorageInterface
-		BatchReceiptCacheStorage storage.CacheStorageInterface
-		MainBlocksStorage        storage.CacheStackStorageInterface
-		NodeConfiguration        NodeConfigurationServiceInterface
+		NodeReceiptQuery                           query.BatchReceiptQueryInterface
+		MerkleTreeQuery                            query.MerkleTreeQueryInterface
+		NodeRegistrationQuery                      query.NodeRegistrationQueryInterface
+		BlockQuery                                 query.BlockQueryInterface
+		TransactionQuery                           query.TransactionQueryInterface
+		QueryExecutor                              query.ExecutorInterface
+		NodeRegistrationService                    NodeRegistrationServiceInterface
+		Signature                                  crypto.SignatureInterface
+		PublishedReceiptQuery                      query.PublishedReceiptQueryInterface
+		ReceiptUtil                                coreUtil.ReceiptUtilInterface
+		MainBlockStateStorage                      storage.CacheStorageInterface
+		ScrambleNodeService                        ScrambleNodeServiceInterface
+		ReceiptReminderStorage                     storage.CacheStorageInterface
+		BatchReceiptCacheStorage                   storage.CacheStorageInterface
+		MainBlocksStorage                          storage.CacheStackStorageInterface
+		PriorityPeersDestinationCacheHybridStorage storage.HybridCacheStorageInterface
+		NodeConfiguration                          NodeConfigurationServiceInterface
 		// local cache
 		LastMerkleRoot []byte
 		MerkleRootUtil util.MerkleRootInterface
@@ -192,6 +195,7 @@ func NewReceiptService(
 	mainBlockStateStorage, receiptReminderStorage, batchReceiptCacheStorage storage.CacheStorageInterface,
 	scrambleNodeService ScrambleNodeServiceInterface,
 	mainBlocksStorage storage.CacheStackStorageInterface,
+	priorityPeersDestinationCacheHybridStorage storage.HybridCacheStorageInterface,
 	merkleRootUtil util.MerkleRootInterface,
 	nodeConfiguration NodeConfigurationServiceInterface,
 	logger *log.Logger,
@@ -212,10 +216,11 @@ func NewReceiptService(
 		ReceiptReminderStorage:   receiptReminderStorage,
 		BatchReceiptCacheStorage: batchReceiptCacheStorage,
 		MainBlocksStorage:        mainBlocksStorage,
-		LastMerkleRoot:           nil,
-		MerkleRootUtil:           merkleRootUtil,
-		NodeConfiguration:        nodeConfiguration,
-		Logger:                   logger,
+		PriorityPeersDestinationCacheHybridStorage: priorityPeersDestinationCacheHybridStorage,
+		LastMerkleRoot:    nil,
+		MerkleRootUtil:    merkleRootUtil,
+		NodeConfiguration: nodeConfiguration,
+		Logger:            logger,
 	}
 }
 
@@ -233,8 +238,8 @@ func (rs *ReceiptService) Initialize() error {
 	return nil
 }
 
-// getPriorityPeersAtHeight compute the set of assigned receivers (priority peers) at a given block height
-func (rs *ReceiptService) getPriorityPeersAtHeight(nodePubKey []byte, blockHeight uint32) (map[string]*model.Peer, error) {
+// GetPriorityPeersAtHeight compute the set of assigned receivers (priority peers) at a given block height
+func (rs *ReceiptService) GetPriorityPeersAtHeight(nodePubKey []byte, blockHeight uint32) (map[string]*model.Peer, error) {
 	// the node looks up its position in scramble nodes at the look back height,
 	// and computes its set of assigned receivers at that time (gets its priority peers at that height).
 	var (
@@ -344,7 +349,7 @@ func (rs *ReceiptService) SelectUnlinkedReceipts(
 	// the node looks up its position in scramble nodes at the look back height,
 	// and computes its set of assigned receivers at that time (gets its priority peers at that height).
 	nodePubKey := rs.NodeConfiguration.GetNodePublicKey()
-	priorityPeersAtHeight, err := rs.getPriorityPeersAtHeight(nodePubKey, lookBackHeight)
+	priorityPeersAtHeight, err := rs.GetPriorityPeersAtHeight(nodePubKey, lookBackHeight)
 	if err != nil || len(priorityPeersAtHeight) == 0 {
 		if err != nil {
 			rs.Logger.Error(err)
@@ -433,7 +438,7 @@ func (rs *ReceiptService) ValidateUnlinkedReceipts(
 
 	// the node looks up its position in scramble nodes at the look back height,
 	// and computes its set of assigned receivers at that time (gets its priority peers at that height).
-	priorityPeersAtHeight, err := rs.getPriorityPeersAtHeight(blockToValidate.BlocksmithPublicKey, lookBackHeight)
+	priorityPeersAtHeight, err := rs.GetPriorityPeersAtHeight(blockToValidate.BlocksmithPublicKey, lookBackHeight)
 	if err != nil {
 		return validReceipts, err
 	}
@@ -464,73 +469,32 @@ func (rs *ReceiptService) SelectLinkedReceipts(
 	numberOfUnlinkedReceipts, numberOfReceipt, blockHeight uint32,
 	blockSeed []byte,
 ) ([]*model.PublishedReceipt, error) {
-	var (
-		linkedReceipts []*model.PublishedReceipt
-		referenceBlock *model.Block
-		nodePublicKey  = rs.NodeConfiguration.GetNodePublicKey()
-		// maxLookBackwardSteps max n. of times this node should look backwards trying to link receipts when he was one of the scramble nodes
-		// note: numberOfReceipts = number of max priority peers the node has
-		maxLookBackwardSteps           = numberOfReceipt
-		rmrLinkedIndex, publishedIndex uint32
-	)
-
-	// possible no connected node || lastblock height is too low to select receipts
-	if numberOfReceipt == 0 || blockHeight < 2*constant.BatchReceiptLookBackHeight {
+	if numberOfReceipt == 0 || blockHeight < constant.BatchReceiptLookBackHeight {
 		return nil, nil
 	}
+	var (
+		linkedReceipts                 []*model.PublishedReceipt
+		referenceBlock                 *model.Block
+		rmrLinkedIndex, publishedIndex uint32
+		nodePublicKey                  = rs.NodeConfiguration.GetNodePublicKey()
+		publicKeyString                = hex.EncodeToString(nodePublicKey)
+		priorityPeerAtHeights          = make([]uint32, 0)
+		maxLookBackwardSteps           = numberOfReceipt
+	)
+	rs.PriorityPeersDestinationCacheHybridStorage.GetItem(publicKeyString, &priorityPeerAtHeights)
 
-	// set first index for linked published receipts one unit more than the latest unlinked receipt index
-	if numberOfUnlinkedReceipts > 0 {
-		publishedIndex = rmrLinkedIndex + numberOfUnlinkedReceipts + 1
-	}
-	// loop backwards searching for blocks where current node was one of the block creators (when was in scramble node list)
-	// TODO: add a limit to the number of max blocks that can be scanned
-	for lookBackHeightInt := int32(blockHeight - 1); lookBackHeightInt >= 0; lookBackHeightInt-- {
-		if lookBackHeightInt < constant.BatchReceiptLookBackHeight {
-			break
-		}
+	for _, lookBackHeight := range priorityPeerAtHeights {
 		var (
-			refPublishedReceipt     = query.NewPublishedReceipt()
-			lookBackHeight          = uint32(lookBackHeightInt)
-			unlinkedReceiptLookback = lookBackHeight - constant.BatchReceiptLookBackHeight
+			refPublishedReceipt = query.NewPublishedReceipt()
 		)
-
 		if maxLookBackwardSteps == 0 {
 			break
 		}
-
-		// get the block creator's pub key
-		lookBackBlock, err := util.GetBlockByHeight(
-			lookBackHeight,
-			rs.QueryExecutor,
-			rs.BlockQuery,
-		)
-		if err != nil {
-			return nil, err
-		}
-		priorityPeersAtHeight, err := rs.getPriorityPeersAtHeight(lookBackBlock.BlocksmithPublicKey, unlinkedReceiptLookback)
-		if err != nil || len(priorityPeersAtHeight) == 0 {
-			if err != nil {
-				rs.Logger.Error(err)
-			} else {
-				rs.Logger.Debug("no priority peers for node at block height: ", lookBackHeight)
-			}
-			monitoring.IncrementMainchainDownloadCycleDebugger(&chaintype.MainChain{}, 10)
-			rs.Logger.Error("============== 10")
+		if lookBackHeight > blockHeight-constant.BatchReceiptLookBackHeight {
 			continue
 		}
-		if _, ok := priorityPeersAtHeight[hex.EncodeToString(nodePublicKey)]; !ok {
-			monitoring.IncrementMainchainDownloadCycleDebugger(&chaintype.MainChain{}, 20)
-			rs.Logger.Error("============== 20")
-			continue
-		}
-
-		// we found one block where the node was one of the scramble nodes
 		maxLookBackwardSteps--
-		monitoring.IncrementMainchainDownloadCycleDebugger(&chaintype.MainChain{}, 30)
-		rs.Logger.Error("============== 30")
 
-		// get the unlinked published receipt that has current node as recipient, at reference block height
 		batchReceiptsQ, rootArgs := rs.PublishedReceiptQuery.GetUnlinkedPublishedReceiptByBlockHeightAndReceiver(lookBackHeight, nodePublicKey)
 		row, err := rs.QueryExecutor.ExecuteSelectRow(batchReceiptsQ, false, rootArgs...)
 		if err != nil {
@@ -587,7 +551,7 @@ func (rs *ReceiptService) SelectLinkedReceipts(
 		// the node looks up its position in scramble nodes at the referenceBlock height,
 		// and computes its set of assigned receivers at that time (gets its priority peers at that height).
 		nodePubKey := rs.NodeConfiguration.GetNodePublicKey()
-		priorityPeersAtHeight, err = rs.getPriorityPeersAtHeight(nodePubKey, referenceBlock.Height)
+		priorityPeersAtHeight, err := rs.GetPriorityPeersAtHeight(nodePubKey, referenceBlock.Height)
 		if err != nil || len(priorityPeersAtHeight) == 0 {
 			if err != nil {
 				rs.Logger.Error(err)
@@ -678,6 +642,221 @@ func (rs *ReceiptService) SelectLinkedReceipts(
 		rs.Logger.Error("============== 100")
 		linkedReceipts = append(linkedReceipts, publishedReceipt)
 	}
+
+	// var (
+	// 	linkedReceipts []*model.PublishedReceipt
+	// 	referenceBlock *model.Block
+	// 	nodePublicKey  = rs.NodeConfiguration.GetNodePublicKey()
+	// 	// maxLookBackwardSteps max n. of times this node should look backwards trying to link receipts when he was one of the scramble nodes
+	// 	// note: numberOfReceipts = number of max priority peers the node has
+	// 	maxLookBackwardSteps           = numberOfReceipt
+	// 	rmrLinkedIndex, publishedIndex uint32
+	// )
+
+	// // possible no connected node || lastblock height is too low to select receipts
+	// if numberOfReceipt == 0 || blockHeight < 2*constant.BatchReceiptLookBackHeight {
+	// 	return nil, nil
+	// }
+
+	// // set first index for linked published receipts one unit more than the latest unlinked receipt index
+	// if numberOfUnlinkedReceipts > 0 {
+	// 	publishedIndex = rmrLinkedIndex + numberOfUnlinkedReceipts + 1
+	// }
+	// // loop backwards searching for blocks where current node was one of the block creators (when was in scramble node list)
+	// // TODO: add a limit to the number of max blocks that can be scanned
+	// for lookBackHeightInt := int32(blockHeight - 1); lookBackHeightInt >= 0; lookBackHeightInt-- {
+	// 	if lookBackHeightInt < constant.BatchReceiptLookBackHeight {
+	// 		break
+	// 	}
+	// 	var (
+	// 		refPublishedReceipt     = query.NewPublishedReceipt()
+	// 		lookBackHeight          = uint32(lookBackHeightInt)
+	// 		unlinkedReceiptLookback = lookBackHeight - constant.BatchReceiptLookBackHeight
+	// 	)
+
+	// 	if maxLookBackwardSteps == 0 {
+	// 		break
+	// 	}
+
+	// 	// get the block creator's pub key
+	// 	lookBackBlock, err := util.GetBlockByHeight(
+	// 		lookBackHeight,
+	// 		rs.QueryExecutor,
+	// 		rs.BlockQuery,
+	// 	)
+	// 	if err != nil {
+	// 		return nil, err
+	// 	}
+	// 	priorityPeersAtHeight, err := rs.getPriorityPeersAtHeight(lookBackBlock.BlocksmithPublicKey, unlinkedReceiptLookback)
+	// 	if err != nil || len(priorityPeersAtHeight) == 0 {
+	// 		if err != nil {
+	// 			rs.Logger.Error(err)
+	// 		} else {
+	// 			rs.Logger.Debug("no priority peers for node at block height: ", lookBackHeight)
+	// 		}
+	// 		monitoring.IncrementMainchainDownloadCycleDebugger(&chaintype.MainChain{}, 10)
+	// 		rs.Logger.Error("============== 10")
+	// 		continue
+	// 	}
+	// 	if _, ok := priorityPeersAtHeight[hex.EncodeToString(nodePublicKey)]; !ok {
+	// 		monitoring.IncrementMainchainDownloadCycleDebugger(&chaintype.MainChain{}, 20)
+	// 		rs.Logger.Error("============== 20")
+	// 		continue
+	// 	}
+
+	// 	// we found one block where the node was one of the scramble nodes
+	// 	maxLookBackwardSteps--
+	// 	monitoring.IncrementMainchainDownloadCycleDebugger(&chaintype.MainChain{}, 30)
+	// 	rs.Logger.Error("============== 30")
+
+	// 	// get the unlinked published receipt that has current node as recipient, at reference block height
+	// 	batchReceiptsQ, rootArgs := rs.PublishedReceiptQuery.GetUnlinkedPublishedReceiptByBlockHeightAndReceiver(lookBackHeight, nodePublicKey)
+	// 	row, err := rs.QueryExecutor.ExecuteSelectRow(batchReceiptsQ, false, rootArgs...)
+	// 	if err != nil {
+	// 		return nil, err
+	// 	}
+	// 	err = rs.PublishedReceiptQuery.Scan(refPublishedReceipt, row)
+	// 	if err != nil {
+	// 		if err == sql.ErrNoRows {
+	// 			// there are no published receipts to link a batch to, fail this block and continue
+	// 			monitoring.IncrementMainchainDownloadCycleDebugger(&chaintype.MainChain{}, 40)
+	// 			rs.Logger.Error("============== 40")
+	// 			continue
+	// 		}
+	// 		monitoring.IncrementMainchainDownloadCycleDebugger(&chaintype.MainChain{}, 50)
+	// 		rs.Logger.Error("============== 50")
+	// 		return nil, err
+	// 	}
+
+	// 	// get the block to select relative transaction hashes and previous block hash (similar to what we do for unlinked receipts)
+	// 	referenceBlock, err = util.GetBlockByHeight(
+	// 		refPublishedReceipt.GetReceipt().ReferenceBlockHeight,
+	// 		rs.QueryExecutor,
+	// 		rs.BlockQuery,
+	// 	)
+	// 	// this should not happen, since we already verify that this block exists when validating the receipt
+	// 	if err != nil {
+	// 		return nil, err
+	// 	}
+	// 	// get block transactions and published receipts
+	// 	err = util.PopulateBlockData(referenceBlock, rs.QueryExecutor, rs.TransactionQuery, rs.PublishedReceiptQuery)
+	// 	if err != nil {
+	// 		return nil, err
+	// 	}
+
+	// 	var (
+	// 		rndDatumType uint32
+	// 		hashList     [][]byte
+	// 		rndDatumHash []byte
+	// 	) // list of hashes of all data secured by the block
+	// 	hashList, err = rs.ReceiptUtil.BuildBlockDatumHashes(referenceBlock, rs.QueryExecutor, rs.TransactionQuery)
+	// 	if err != nil {
+	// 		return nil, err
+	// 	}
+
+	// 	// roll a random number based on new block seed to select specific data from the looked up
+	// 	rndDatumHash, rndDatumType, err = rs.ReceiptUtil.GetRandomDatumHash(hashList, blockSeed)
+	// 	if err != nil {
+	// 		return nil, err
+	// 	}
+
+	// 	var (
+	// 		priorityPeersArray []*model.Peer
+	// 	)
+	// 	// the node looks up its position in scramble nodes at the referenceBlock height,
+	// 	// and computes its set of assigned receivers at that time (gets its priority peers at that height).
+	// 	nodePubKey := rs.NodeConfiguration.GetNodePublicKey()
+	// 	priorityPeersAtHeight, err = rs.getPriorityPeersAtHeight(nodePubKey, referenceBlock.Height)
+	// 	if err != nil || len(priorityPeersAtHeight) == 0 {
+	// 		if err != nil {
+	// 			rs.Logger.Error(err)
+	// 		} else {
+	// 			rs.Logger.Debug("no priority peers for node at block height: ", referenceBlock.Height)
+	// 		}
+	// 		monitoring.IncrementMainchainDownloadCycleDebugger(&chaintype.MainChain{}, 60)
+	// 		rs.Logger.Error("============== 60")
+	// 		continue
+	// 	}
+	// 	for _, pp := range priorityPeersAtHeight {
+	// 		priorityPeersArray = append(priorityPeersArray, pp)
+	// 	}
+	// 	priorityPeersArray = sortPeers(priorityPeersArray)
+
+	// 	// Use the new block seed (from the block I am creating) to "roll" a random number to select one of my N assigned receivers.
+	// 	// This determines the “receiver” I must produce a receipt for.
+	// 	var (
+	// 		rng        = crypto.NewRandomNumberGenerator()
+	// 		rndPeerIdx int
+	// 	)
+	// 	err = rng.Reset(constant.ReceiptSelectionSeedPrefix, blockSeed)
+	// 	if err != nil {
+	// 		return nil, err
+	// 	}
+	// 	rndSeedInt := rng.Next()
+	// 	rndSelSeed := rand.NewSource(rndSeedInt)
+	// 	rnd := rand.New(rndSelSeed)
+	// 	if len(priorityPeersAtHeight) > 1 {
+	// 		rndPeerIdx = rnd.Intn(len(priorityPeersAtHeight) - 1)
+	// 	}
+	// 	rndPeer := priorityPeersArray[rndPeerIdx]
+
+	// 	if rndPeer.GetInfo() == nil {
+	// 		return nil, errors.New("priorityPeerInfoEmpty")
+	// 	}
+
+	// 	var (
+	// 		batchReceiptToLink = query.NewBatchReceipt()
+	// 	)
+	// 	// 2. Query my receipts in the batch, to find one that matches the data hash we rolled,
+	// 	// and also matches the receiver that we rolled. If we *do not* have a receipt in the batch that matches these 2,
+	// 	// then we fail this block (cannot link a receipt to it), and continue iterating backwards.
+	// 	batchReceiptsQ, rootArgs = rs.NodeReceiptQuery.GetReceiptByRecipientAndDatumHash(
+	// 		rndDatumHash,
+	// 		rndDatumType,
+	// 		rndPeer.GetInfo().PublicKey,
+	// 	)
+	// 	row, err = rs.QueryExecutor.ExecuteSelectRow(batchReceiptsQ, false, rootArgs...)
+	// 	if err != nil {
+	// 		return nil, err
+	// 	}
+	// 	err = rs.NodeReceiptQuery.Scan(batchReceiptToLink, row)
+	// 	if err != nil {
+	// 		if err != sql.ErrNoRows {
+	// 			rs.Logger.Error(err)
+	// 		}
+	// 		monitoring.IncrementMainchainDownloadCycleDebugger(&chaintype.MainChain{}, 70)
+	// 		rs.Logger.Error("============== 70")
+	// 		continue
+	// 	}
+	// 	if err = rs.ValidateReceipt(batchReceiptToLink.Receipt, true); err != nil {
+	// 		// batch receipt is invalid. fail the block and continue
+	// 		monitoring.IncrementMainchainDownloadCycleDebugger(&chaintype.MainChain{}, 80)
+	// 		rs.Logger.Error("============== 80")
+	// 		continue
+	// 	}
+
+	// 	// 3. If we DO have a matching receipt (which we should, if we’ve been doing all of our work on the network),
+	// 	// this becomes one of our N "linked receipts", which we can publish in our new block.
+	// 	publishedReceipt, err := rs.ReceiptUtil.GeneratePublishedReceipt(
+	// 		batchReceiptToLink.Receipt,
+	// 		publishedIndex,
+	// 		refPublishedReceipt.Receipt.RMR,
+	// 		batchReceiptToLink.RMRBatchIndex,
+	// 		rs.QueryExecutor,
+	// 		query.NewMerkleTreeQuery(),
+	// 	)
+	// 	publishedIndex++
+	// 	rmrLinkedIndex++
+	// 	if err != nil {
+	// 		rs.Logger.Error(err)
+	// 		monitoring.IncrementMainchainDownloadCycleDebugger(&chaintype.MainChain{}, 90)
+	// 		rs.Logger.Error("============== 90")
+	// 		continue
+	// 	}
+	// 	monitoring.IncrementMainchainDownloadCycleDebugger(&chaintype.MainChain{}, 100)
+	// 	rs.Logger.Error("============== 100")
+	// 	linkedReceipts = append(linkedReceipts, publishedReceipt)
+	// }
 	monitoring.IncrementMainchainDownloadCycleDebugger(&chaintype.MainChain{}, 110)
 	rs.Logger.Error("============== 110")
 	return linkedReceipts, nil
@@ -689,52 +868,33 @@ func (rs *ReceiptService) ValidateLinkedReceipts(
 	maxLookBackwardSteps int32,
 ) (validReceipts []*model.PublishedReceipt, err error) {
 	var (
-		linkedReceipts []*model.PublishedReceipt
+		linkedReceipts        []*model.PublishedReceipt
+		priorityPeerAtHeights = make([]uint32, 0)
 	)
 
-	if receiptsToValidate == nil || len(receiptsToValidate) == 0 {
+	if receiptsToValidate == nil || len(receiptsToValidate) == 0 || maxLookBackwardSteps == 0 {
 		return receiptsToValidate, nil
 	}
 
-	// loop backwards searching for blocks where current block creators was in priority peers of another block creator
-	for lookBackHeightInt := int32(blockToValidate.Height - 1); lookBackHeightInt >= 0; lookBackHeightInt-- {
-		if lookBackHeightInt < constant.BatchReceiptLookBackHeight {
-			break
-		}
-		var (
-			lookBackHeight          = uint32(lookBackHeightInt)
-			unlinkedReceiptLookback = lookBackHeight - constant.BatchReceiptLookBackHeight
-			lookBackBlockReceipt    *model.PublishedReceipt
-			lookBackBlock, err      = util.GetBlockByHeight(lookBackHeight, rs.QueryExecutor, rs.BlockQuery)
-			receiptToValidate       *model.PublishedReceipt
-		)
-		// this should not happen, since we already verify that this block exists when validating the receipt
-		if err != nil {
-			return nil, err
-		}
+	rs.PriorityPeersDestinationCacheHybridStorage.GetItem(hex.EncodeToString(blockToValidate.GetBlocksmithPublicKey()), &priorityPeerAtHeights)
 
+	for _, lookBackHeight := range priorityPeerAtHeights {
+		var (
+			lookBackBlock        *model.Block
+			lookBackBlockReceipt *model.PublishedReceipt
+			receiptToValidate    *model.PublishedReceipt
+		)
 		if maxLookBackwardSteps == 0 {
 			break
 		}
-
-		// check if the new block's creator is one of Priority Peers at look back height and if not skip this block and continue
-		// if not returns and empty peer array
-		priorityPeersAtHeight, err := rs.getPriorityPeersAtHeight(lookBackBlock.BlocksmithPublicKey, unlinkedReceiptLookback)
-		if err != nil || len(priorityPeersAtHeight) == 0 {
-			if err != nil {
-				rs.Logger.Error(err)
-			} else {
-				rs.Logger.Debug("no priority peers for node at block height: ", lookBackHeight)
-			}
-			monitoring.IncrementMainchainDownloadCycleDebugger(&chaintype.MainChain{}, 200)
-			rs.Logger.Error("============== 200")
-			return nil, errors.New("CannotValidatePriorityPeersAtHeight")
-		}
-
-		if _, ok := priorityPeersAtHeight[hex.EncodeToString(blockToValidate.BlocksmithPublicKey)]; !ok {
-			monitoring.IncrementMainchainDownloadCycleDebugger(&chaintype.MainChain{}, 200)
-			rs.Logger.Error("============== 210")
+		if lookBackHeight > blockToValidate.GetHeight()-constant.BatchReceiptLookBackHeight {
 			continue
+		}
+		maxLookBackwardSteps--
+
+		lookBackBlock, err = util.GetBlockByHeight(lookBackHeight, rs.QueryExecutor, rs.BlockQuery)
+		if err != nil {
+			return nil, err
 		}
 
 		// get block transactions and published receipts
@@ -742,10 +902,6 @@ func (rs *ReceiptService) ValidateLinkedReceipts(
 		if err != nil {
 			return nil, err
 		}
-
-		// we found one block where the new block's creator was one of the priority peers to that block's creator :)
-		// if we fail validation from now on, we miss one of the receipts that are supposed to be linked to the new block
-		maxLookBackwardSteps--
 
 		// loop through the unlinked published receipt from ref block and see if any of them have receipt.receiver = new_block.creator
 		var (
@@ -809,7 +965,7 @@ func (rs *ReceiptService) ValidateLinkedReceipts(
 		)
 		// the node looks up its position in scramble nodes at the referenceBlock height,
 		// and computes its set of assigned receivers at that time (gets its priority peers at that height).
-		priorityPeersAtHeight, err = rs.getPriorityPeersAtHeight(blockToValidate.BlocksmithPublicKey, referenceBlock.Height)
+		priorityPeersAtHeight, err := rs.GetPriorityPeersAtHeight(blockToValidate.BlocksmithPublicKey, referenceBlock.Height)
 		if err != nil || len(priorityPeersAtHeight) == 0 {
 			if err != nil {
 				rs.Logger.Error(err)
@@ -895,6 +1051,206 @@ func (rs *ReceiptService) ValidateLinkedReceipts(
 		rs.Logger.Error("============== 270")
 		linkedReceipts = append(linkedReceipts, receiptToValidate)
 	}
+
+	// // loop backwards searching for blocks where current block creators was in priority peers of another block creator
+	// for lookBackHeightInt := int32(blockToValidate.Height - 1); lookBackHeightInt >= 0; lookBackHeightInt-- {
+	// 	if lookBackHeightInt < constant.BatchReceiptLookBackHeight {
+	// 		break
+	// 	}
+	// 	var (
+	// 		lookBackHeight          = uint32(lookBackHeightInt)
+	// 		unlinkedReceiptLookback = lookBackHeight - constant.BatchReceiptLookBackHeight
+	// 		lookBackBlockReceipt    *model.PublishedReceipt
+	// 		lookBackBlock, err      = util.GetBlockByHeight(lookBackHeight, rs.QueryExecutor, rs.BlockQuery)
+	// 		receiptToValidate       *model.PublishedReceipt
+	// 	)
+	// 	// this should not happen, since we already verify that this block exists when validating the receipt
+	// 	if err != nil {
+	// 		return nil, err
+	// 	}
+
+	// 	if maxLookBackwardSteps == 0 {
+	// 		break
+	// 	}
+
+	// 	// check if the new block's creator is one of Priority Peers at look back height and if not skip this block and continue
+	// 	// if not returns and empty peer array
+	// 	priorityPeersAtHeight, err := rs.getPriorityPeersAtHeight(lookBackBlock.BlocksmithPublicKey, unlinkedReceiptLookback)
+	// 	if err != nil || len(priorityPeersAtHeight) == 0 {
+	// 		if err != nil {
+	// 			rs.Logger.Error(err)
+	// 		} else {
+	// 			rs.Logger.Debug("no priority peers for node at block height: ", lookBackHeight)
+	// 		}
+	// 		monitoring.IncrementMainchainDownloadCycleDebugger(&chaintype.MainChain{}, 200)
+	// 		rs.Logger.Error("============== 200")
+	// 		return nil, errors.New("CannotValidatePriorityPeersAtHeight")
+	// 	}
+
+	// 	if _, ok := priorityPeersAtHeight[hex.EncodeToString(blockToValidate.BlocksmithPublicKey)]; !ok {
+	// 		monitoring.IncrementMainchainDownloadCycleDebugger(&chaintype.MainChain{}, 200)
+	// 		rs.Logger.Error("============== 210")
+	// 		continue
+	// 	}
+
+	// 	// get block transactions and published receipts
+	// 	err = util.PopulateBlockData(lookBackBlock, rs.QueryExecutor, rs.TransactionQuery, rs.PublishedReceiptQuery)
+	// 	if err != nil {
+	// 		return nil, err
+	// 	}
+
+	// 	// we found one block where the new block's creator was one of the priority peers to that block's creator :)
+	// 	// if we fail validation from now on, we miss one of the receipts that are supposed to be linked to the new block
+	// 	maxLookBackwardSteps--
+
+	// 	// loop through the unlinked published receipt from ref block and see if any of them have receipt.receiver = new_block.creator
+	// 	var (
+	// 		receiptFound = false
+	// 	)
+	// 	for _, lookBackBlockReceipt = range lookBackBlock.GetPublishedReceipts() {
+	// 		// did the new block creator have an unlinked receipt in ref block?
+	// 		if lookBackBlockReceipt.RMRLinked == nil {
+	// 			if bytes.Equal(lookBackBlockReceipt.RMRLinked, []byte{}) && bytes.Equal(lookBackBlockReceipt.Receipt.RecipientPublicKey, blockToValidate.BlocksmithPublicKey) {
+	// 				receiptFound = true
+	// 				break
+	// 			}
+	// 		}
+	// 	}
+	// 	// new block's creator didn't produce an unlinked receipt relative to the linked receipt we are validating,
+	// 	// when it was supposed to do it, so we skip this block
+	// 	if !receiptFound {
+	// 		monitoring.IncrementMainchainDownloadCycleDebugger(&chaintype.MainChain{}, 220)
+	// 		rs.Logger.Error("============== 220")
+	// 		continue
+	// 	}
+
+	// 	// Lookup the reference block
+	// 	var (
+	// 		referenceBlockHeight = lookBackBlockReceipt.Receipt.ReferenceBlockHeight
+	// 	)
+	// 	// get the block to select relative transaction hashes and previous block hash (similar to what we do for unlinked receipts)
+	// 	referenceBlock, err := util.GetBlockByHeight(
+	// 		referenceBlockHeight,
+	// 		rs.QueryExecutor,
+	// 		rs.BlockQuery,
+	// 	)
+	// 	// this should not happen, since we already verify that this block exists when validating the receipt
+	// 	if err != nil {
+	// 		return nil, err
+	// 	}
+	// 	// get block transactions and published receipts
+	// 	err = util.PopulateBlockData(referenceBlock, rs.QueryExecutor, rs.TransactionQuery, rs.PublishedReceiptQuery)
+	// 	if err != nil {
+	// 		return nil, err
+	// 	}
+
+	// 	var (
+	// 		rndDatumType uint32
+	// 		hashList     [][]byte
+	// 		rndDatumHash []byte
+	// 	) // list of hashes of all data secured by the block
+	// 	hashList, err = rs.ReceiptUtil.BuildBlockDatumHashes(referenceBlock, rs.QueryExecutor, rs.TransactionQuery)
+	// 	if err != nil {
+	// 		return nil, err
+	// 	}
+
+	// 	// roll a random number based on new block seed to select specific data from the looked up
+	// 	rndDatumHash, rndDatumType, err = rs.ReceiptUtil.GetRandomDatumHash(hashList, blockToValidate.BlocksmithPublicKey)
+	// 	if err != nil {
+	// 		return nil, err
+	// 	}
+
+	// 	var (
+	// 		priorityPeersArray []*model.Peer
+	// 	)
+	// 	// the node looks up its position in scramble nodes at the referenceBlock height,
+	// 	// and computes its set of assigned receivers at that time (gets its priority peers at that height).
+	// 	priorityPeersAtHeight, err = rs.getPriorityPeersAtHeight(blockToValidate.BlocksmithPublicKey, referenceBlock.Height)
+	// 	if err != nil || len(priorityPeersAtHeight) == 0 {
+	// 		if err != nil {
+	// 			rs.Logger.Error(err)
+	// 		} else {
+	// 			rs.Logger.Debug("no priority peers for node at block height: ", referenceBlock.Height)
+	// 		}
+	// 		monitoring.IncrementMainchainDownloadCycleDebugger(&chaintype.MainChain{}, 230)
+	// 		rs.Logger.Error("============== 230")
+	// 		return nil, errors.New("CannotValidatePriorityPeersAtHeight")
+	// 	}
+	// 	for _, pp := range priorityPeersAtHeight {
+	// 		priorityPeersArray = append(priorityPeersArray, pp)
+	// 	}
+	// 	priorityPeersArray = sortPeers(priorityPeersArray)
+
+	// 	// Use the new block seed (from the block I am creating) to "roll" a random number to select one of my N assigned receivers.
+	// 	// This determines the “receiver” I must produce a receipt for.
+	// 	var (
+	// 		rng        = crypto.NewRandomNumberGenerator()
+	// 		rndPeerIdx int
+	// 	)
+	// 	err = rng.Reset(constant.ReceiptSelectionSeedPrefix, blockToValidate.BlockSeed)
+	// 	if err != nil {
+	// 		return nil, err
+	// 	}
+	// 	rndSeedInt := rng.Next()
+	// 	rndSelSeed := rand.NewSource(rndSeedInt)
+	// 	rnd := rand.New(rndSelSeed)
+	// 	if len(priorityPeersAtHeight) > 1 {
+	// 		rndPeerIdx = rnd.Intn(len(priorityPeersAtHeight) - 1)
+	// 	}
+	// 	rndPeer := priorityPeersArray[rndPeerIdx]
+
+	// 	if rndPeer.GetInfo() == nil {
+	// 		return nil, errors.New("priorityPeerInfoEmpty")
+	// 	}
+
+	// 	// find the relative linked receipt (same datum hash) that we have to validate
+	// 	receiptFound = false
+	// 	for _, receiptToValidate = range receiptsToValidate {
+	// 		if bytes.Equal(receiptToValidate.RMRLinked, lookBackBlockReceipt.Receipt.RMR) {
+	// 			receiptFound = true
+	// 			break
+	// 		}
+	// 	}
+	// 	// TODO: make sure this doesn't create problems with forks. in case yes, we probably should fail the block
+	// 	if !receiptFound {
+	// 		monitoring.IncrementMainchainDownloadCycleDebugger(&chaintype.MainChain{}, 240)
+	// 		rs.Logger.Error("============== 240")
+	// 		continue
+	// 	}
+
+	// 	// intermediate hashes validation
+	// 	var (
+	// 		merkle        = util.NewMerkleRoot()
+	// 		hashedReceipt = sha3.Sum256(rs.ReceiptUtil.GetSignedReceiptBytes(receiptToValidate.Receipt))
+	// 	)
+	// 	intermediateHashes, err := merkle.RestoreIntermediateHashes(receiptToValidate.IntermediateHashes)
+	// 	if err != nil {
+	// 		return nil, errors.New(err.Error())
+	// 	}
+
+	// 	RMRToVerify, err := merkle.GetMerkleRootFromIntermediateHashes(hashedReceipt[:], receiptToValidate.RMRLinkedIndex, intermediateHashes)
+	// 	if err != nil {
+	// 		return nil, errors.New(err.Error())
+	// 	}
+	// 	if !bytes.Equal(RMRToVerify, lookBackBlockReceipt.Receipt.RMR) {
+	// 		monitoring.IncrementMainchainDownloadCycleDebugger(&chaintype.MainChain{}, 250)
+	// 		rs.Logger.Error("============== 250")
+	// 		return nil, errors.New("InvalidLinkedRMR")
+	// 	}
+
+	// 	// does the newly published receipt match this data hash, and match this receiver?
+	// 	if !(bytes.Equal(receiptToValidate.Receipt.DatumHash, rndDatumHash) &&
+	// 		receiptToValidate.Receipt.DatumType == rndDatumType &&
+	// 		bytes.Equal(rndPeer.Info.PublicKey, receiptToValidate.Receipt.RecipientPublicKey)) {
+	// 		// then new block's linked receipt is valid!
+	// 		monitoring.IncrementMainchainDownloadCycleDebugger(&chaintype.MainChain{}, 260)
+	// 		rs.Logger.Error("============== 260")
+	// 		return nil, errors.New("LinkedReceiptsValidationError")
+	// 	}
+	// 	monitoring.IncrementMainchainDownloadCycleDebugger(&chaintype.MainChain{}, 270)
+	// 	rs.Logger.Error("============== 270")
+	// 	linkedReceipts = append(linkedReceipts, receiptToValidate)
+	// }
 	if len(linkedReceipts) != len(receiptsToValidate) {
 		monitoring.IncrementMainchainDownloadCycleDebugger(&chaintype.MainChain{}, 270)
 		rs.Logger.Error("============== 280")

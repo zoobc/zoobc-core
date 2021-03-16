@@ -97,6 +97,14 @@ func TestCalculateParticipationScore(t *testing.T) {
 			},
 			want: 4 * constant.DecreaseScoreMod,
 		},
+		{
+			name: "wantSuccess:score-above-center-value",
+			args: args{
+				linkedReceipt:   5,
+				unlinkedReceipt: 3,
+			},
+			want: 9 * constant.IncreaseScoreMod,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

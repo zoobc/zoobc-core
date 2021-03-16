@@ -54,10 +54,11 @@ import (
 	"database/sql"
 	"encoding/hex"
 	"errors"
-	"github.com/zoobc/zoobc-core/common/signaturetype"
 	"reflect"
 	"regexp"
 	"testing"
+
+	"github.com/zoobc/zoobc-core/common/signaturetype"
 
 	log "github.com/sirupsen/logrus"
 
@@ -1807,10 +1808,12 @@ func (*receiptSrvMockReceiptUtilSuccess) ValidateReceiptHelper(
 }
 
 func (*receiptSrvMockReceiptUtilSuccess) GeneratePublishedReceipt(
-	batchReceipt *model.Receipt,
+	receipt *model.Receipt,
 	PublishedIndex uint32,
 	RMRLinked []byte,
 	RMRLinkedIndex uint32,
+	executor query.ExecutorInterface,
+	merkleTreeQuery query.MerkleTreeQueryInterface,
 ) (*model.PublishedReceipt, error) {
 	return mockReceiptToPublish, nil
 }

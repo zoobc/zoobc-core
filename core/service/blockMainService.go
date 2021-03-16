@@ -51,6 +51,7 @@ package service
 
 import (
 	"bytes"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"math/big"
@@ -99,44 +100,45 @@ type (
 	// TODO: rename to BlockMainService
 	BlockService struct {
 		sync.RWMutex
-		Chaintype                   chaintype.ChainType
-		QueryExecutor               query.ExecutorInterface
-		BlockQuery                  query.BlockQueryInterface
-		MempoolQuery                query.MempoolQueryInterface
-		TransactionQuery            query.TransactionQueryInterface
-		PublishedReceiptQuery       query.PublishedReceiptQueryInterface
-		SkippedBlocksmithQuery      query.SkippedBlocksmithQueryInterface
-		Signature                   crypto.SignatureInterface
-		MempoolService              MempoolServiceInterface
-		ReceiptService              ReceiptServiceInterface
-		NodeRegistrationService     NodeRegistrationServiceInterface
-		NodeAddressInfoService      NodeAddressInfoServiceInterface
-		BlocksmithService           BlocksmithServiceInterface
-		FeeScaleService             fee.FeeScaleServiceInterface
-		ActionTypeSwitcher          transaction.TypeActionSwitcher
-		AccountBalanceQuery         query.AccountBalanceQueryInterface
-		ParticipationScoreQuery     query.ParticipationScoreQueryInterface
-		NodeRegistrationQuery       query.NodeRegistrationQueryInterface
-		AccountLedgerQuery          query.AccountLedgerQueryInterface
-		FeeVoteRevealVoteQuery      query.FeeVoteRevealVoteQueryInterface
-		BlocksmithStrategy          strategy.BlocksmithStrategyInterface
-		BlockIncompleteQueueService BlockIncompleteQueueServiceInterface
-		BlockPoolService            BlockPoolServiceInterface
-		Observer                    *observer.Observer
-		Logger                      *log.Logger
-		TransactionUtil             transaction.UtilInterface
-		ReceiptUtil                 coreUtil.ReceiptUtilInterface
-		PublishedReceiptUtil        coreUtil.PublishedReceiptUtilInterface
-		TransactionCoreService      TransactionCoreServiceInterface
-		PendingTransactionService   PendingTransactionServiceInterface
-		CoinbaseService             CoinbaseServiceInterface
-		ParticipationScoreService   ParticipationScoreServiceInterface
-		PublishedReceiptService     PublishedReceiptServiceInterface
-		PruneQuery                  []query.PruneQuery
-		BlockStateStorage           storage.CacheStorageInterface
-		BlocksStorage               storage.CacheStackStorageInterface
-		BlockchainStatusService     BlockchainStatusServiceInterface
-		ScrambleNodeService         ScrambleNodeServiceInterface
+		Chaintype                                  chaintype.ChainType
+		QueryExecutor                              query.ExecutorInterface
+		BlockQuery                                 query.BlockQueryInterface
+		MempoolQuery                               query.MempoolQueryInterface
+		TransactionQuery                           query.TransactionQueryInterface
+		PublishedReceiptQuery                      query.PublishedReceiptQueryInterface
+		SkippedBlocksmithQuery                     query.SkippedBlocksmithQueryInterface
+		Signature                                  crypto.SignatureInterface
+		MempoolService                             MempoolServiceInterface
+		ReceiptService                             ReceiptServiceInterface
+		NodeRegistrationService                    NodeRegistrationServiceInterface
+		NodeAddressInfoService                     NodeAddressInfoServiceInterface
+		BlocksmithService                          BlocksmithServiceInterface
+		FeeScaleService                            fee.FeeScaleServiceInterface
+		ActionTypeSwitcher                         transaction.TypeActionSwitcher
+		AccountBalanceQuery                        query.AccountBalanceQueryInterface
+		ParticipationScoreQuery                    query.ParticipationScoreQueryInterface
+		NodeRegistrationQuery                      query.NodeRegistrationQueryInterface
+		AccountLedgerQuery                         query.AccountLedgerQueryInterface
+		FeeVoteRevealVoteQuery                     query.FeeVoteRevealVoteQueryInterface
+		BlocksmithStrategy                         strategy.BlocksmithStrategyInterface
+		BlockIncompleteQueueService                BlockIncompleteQueueServiceInterface
+		BlockPoolService                           BlockPoolServiceInterface
+		Observer                                   *observer.Observer
+		Logger                                     *log.Logger
+		TransactionUtil                            transaction.UtilInterface
+		ReceiptUtil                                coreUtil.ReceiptUtilInterface
+		PublishedReceiptUtil                       coreUtil.PublishedReceiptUtilInterface
+		TransactionCoreService                     TransactionCoreServiceInterface
+		PendingTransactionService                  PendingTransactionServiceInterface
+		CoinbaseService                            CoinbaseServiceInterface
+		ParticipationScoreService                  ParticipationScoreServiceInterface
+		PublishedReceiptService                    PublishedReceiptServiceInterface
+		PruneQuery                                 []query.PruneQuery
+		BlockStateStorage                          storage.CacheStorageInterface
+		BlocksStorage                              storage.CacheStackStorageInterface
+		PriorityPeersDestinationCacheHybridStorage storage.HybridCacheStorageInterface
+		BlockchainStatusService                    BlockchainStatusServiceInterface
+		ScrambleNodeService                        ScrambleNodeServiceInterface
 	}
 )
 
@@ -176,6 +178,7 @@ func NewBlockMainService(
 	pruneQuery []query.PruneQuery,
 	blockStateStorage storage.CacheStorageInterface,
 	blocksStorage storage.CacheStackStorageInterface,
+	priorityPeersDestinationCacheHybridStorage storage.HybridCacheStorageInterface,
 	blockchainStatusService BlockchainStatusServiceInterface,
 	scrambleNodeService ScrambleNodeServiceInterface,
 ) *BlockService {
@@ -215,8 +218,9 @@ func NewBlockMainService(
 		PruneQuery:                  pruneQuery,
 		BlockStateStorage:           blockStateStorage,
 		BlocksStorage:               blocksStorage,
-		BlockchainStatusService:     blockchainStatusService,
-		ScrambleNodeService:         scrambleNodeService,
+		PriorityPeersDestinationCacheHybridStorage: priorityPeersDestinationCacheHybridStorage,
+		BlockchainStatusService:                    blockchainStatusService,
+		ScrambleNodeService:                        scrambleNodeService,
 	}
 }
 
@@ -822,6 +826,15 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast, 
 		if err != nil {
 			bs.queryAndCacheRollbackProcess("", isDbTransactionHighPriority, true)
 			return err
+		}
+	}
+	if persist {
+		priorityPeersAtHeight, err := bs.ReceiptService.GetPriorityPeersAtHeight(block.GetBlocksmithPublicKey(), block.GetHeight())
+		if err != nil {
+			bs.Logger.Warnf("FailedNGetPriorityPeersAtHeight-%v", err)
+		}
+		for _, priorityPeer := range priorityPeersAtHeight {
+			bs.PriorityPeersDestinationCacheHybridStorage.SetItem(hex.EncodeToString(priorityPeer.GetInfo().GetPublicKey()), block.GetHeight())
 		}
 	}
 	bs.Logger.Debugf("%s Block Pushed ID: %d", bs.Chaintype.GetName(), block.GetID())
@@ -1661,7 +1674,12 @@ func (bs *BlockService) PopOffToBlock(commonBlock *model.Block) ([]*model.Block,
 	// remove peer memoization
 	err = bs.ScrambleNodeService.PopOffScrambleToHeight(commonBlock.Height)
 	if err != nil {
+		return nil, err
+	}
 
+	// remove priority peer destinations memoization
+	err = bs.PriorityPeersDestinationCacheHybridStorage.RemoveItem(commonBlock.Height)
+	if err != nil {
 		return nil, err
 	}
 	/*

@@ -94,6 +94,21 @@ type (
 		Clear() error
 	}
 
+	HybridCacheStorageInterface interface {
+		// SetItem take any item and store to its specific storage implementation
+		SetItem(key, item interface{}) error
+		// GetItem take variable and assign implementation stored item to it
+		GetItem(key, item interface{}) error
+		// RemoveItems remove item by providing the keys
+		RemoveItems(keys interface{}) error
+		// RemoveItem remove item by providing the key
+		RemoveItem(key interface{}) error
+		// GetSize return the size of storage in number of `byte`
+		GetSize() int64
+		// ClearCache empty the storage item
+		ClearCache() error
+	}
+
 	TransactionalCache interface {
 		// Begin prepare state of cache for transactional writes, must called at start of tx writes
 		Begin() error
