@@ -491,9 +491,6 @@ func (rs *ReceiptService) SelectLinkedReceipts(
 		if maxLookBackwardSteps == 0 {
 			break
 		}
-		if lookBackPriorityAtHeight > blockHeight-constant.BatchReceiptLookBackHeight {
-			continue
-		}
 		maxLookBackwardSteps--
 
 		batchReceiptsQ, rootArgs := rs.PublishedReceiptQuery.GetUnlinkedPublishedReceiptByBlockHeightAndReceiver(lookBackPriorityAtHeight, nodePublicKey)
@@ -888,9 +885,6 @@ func (rs *ReceiptService) ValidateLinkedReceipts(
 		)
 		if maxLookBackwardSteps == 0 {
 			break
-		}
-		if lookBackHeight > blockToValidate.GetHeight()-constant.BatchReceiptLookBackHeight {
-			continue
 		}
 		maxLookBackwardSteps--
 
