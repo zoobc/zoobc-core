@@ -485,18 +485,19 @@ func (rs *ReceiptService) SelectLinkedReceipts(
 
 	for i := len(priorityPeerAtHeights) - 1; i >= 0; i-- {
 		var (
-			refPublishedReceipt = query.NewPublishedReceipt()
-			lookBackHeight      = priorityPeerAtHeights[i]
+			refPublishedReceipt             = query.NewPublishedReceipt()
+			lookBackPriorityAtHeight        = priorityPeerAtHeights[i]
+			lookBackUnlinkedReceiptAtHeight = lookBackPriorityAtHeight + constant.BatchReceiptLookBackHeight
 		)
 		if maxLookBackwardSteps == 0 {
 			break
 		}
-		if lookBackHeight > blockHeight-constant.BatchReceiptLookBackHeight {
+		if lookBackPriorityAtHeight > blockHeight-constant.BatchReceiptLookBackHeight {
 			continue
 		}
 		maxLookBackwardSteps--
 
-		batchReceiptsQ, rootArgs := rs.PublishedReceiptQuery.GetUnlinkedPublishedReceiptByBlockHeightAndReceiver(lookBackHeight, nodePublicKey)
+		batchReceiptsQ, rootArgs := rs.PublishedReceiptQuery.GetUnlinkedPublishedReceiptByBlockHeightAndReceiver(lookBackUnlinkedReceiptAtHeight, nodePublicKey)
 		row, err := rs.QueryExecutor.ExecuteSelectRow(batchReceiptsQ, false, rootArgs...)
 		if err != nil {
 			return nil, err
