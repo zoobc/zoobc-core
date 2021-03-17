@@ -485,9 +485,8 @@ func (rs *ReceiptService) SelectLinkedReceipts(
 
 	for i := len(priorityPeerAtHeights) - 1; i >= 0; i-- {
 		var (
-			refPublishedReceipt             = query.NewPublishedReceipt()
-			lookBackPriorityAtHeight        = priorityPeerAtHeights[i]
-			lookBackUnlinkedReceiptAtHeight = lookBackPriorityAtHeight + constant.BatchReceiptLookBackHeight
+			refPublishedReceipt      = query.NewPublishedReceipt()
+			lookBackPriorityAtHeight = priorityPeerAtHeights[i]
 		)
 		if maxLookBackwardSteps == 0 {
 			break
@@ -497,7 +496,7 @@ func (rs *ReceiptService) SelectLinkedReceipts(
 		}
 		maxLookBackwardSteps--
 
-		batchReceiptsQ, rootArgs := rs.PublishedReceiptQuery.GetUnlinkedPublishedReceiptByBlockHeightAndReceiver(lookBackUnlinkedReceiptAtHeight, nodePublicKey)
+		batchReceiptsQ, rootArgs := rs.PublishedReceiptQuery.GetUnlinkedPublishedReceiptByBlockHeightAndReceiver(lookBackPriorityAtHeight, nodePublicKey)
 		row, err := rs.QueryExecutor.ExecuteSelectRow(batchReceiptsQ, false, rootArgs...)
 		if err != nil {
 			return nil, err
@@ -882,16 +881,15 @@ func (rs *ReceiptService) ValidateLinkedReceipts(
 
 	for i := len(priorityPeerAtHeights) - 1; i >= 0; i-- {
 		var (
-			priorityLookbackHeight = priorityPeerAtHeights[i]
-			lookBackHeight         = priorityPeerAtHeights[i] + constant.BatchReceiptLookBackHeight
-			lookBackBlock          *model.Block
-			lookBackBlockReceipt   *model.PublishedReceipt
-			receiptToValidate      *model.PublishedReceipt
+			lookBackHeight       = priorityPeerAtHeights[i]
+			lookBackBlock        *model.Block
+			lookBackBlockReceipt *model.PublishedReceipt
+			receiptToValidate    *model.PublishedReceipt
 		)
 		if maxLookBackwardSteps == 0 {
 			break
 		}
-		if priorityLookbackHeight > blockToValidate.GetHeight()-constant.BatchReceiptLookBackHeight {
+		if lookBackHeight > blockToValidate.GetHeight()-constant.BatchReceiptLookBackHeight {
 			continue
 		}
 		maxLookBackwardSteps--

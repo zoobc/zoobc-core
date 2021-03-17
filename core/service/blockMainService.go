@@ -828,8 +828,8 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast, 
 			return err
 		}
 	}
-	if persist {
-		priorityPeersAtHeight, err := bs.ReceiptService.GetPriorityPeersAtHeight(block.GetBlocksmithPublicKey(), block.GetHeight())
+	if persist && block.GetHeight() > constant.BatchReceiptLookBackHeight {
+		priorityPeersAtHeight, err := bs.ReceiptService.GetPriorityPeersAtHeight(block.GetBlocksmithPublicKey(), block.GetHeight()-constant.BatchReceiptLookBackHeight)
 		if err != nil {
 			bs.Logger.Warnf("FailedNGetPriorityPeersAtHeight-%v", err)
 		}

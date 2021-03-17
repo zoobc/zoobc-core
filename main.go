@@ -895,12 +895,16 @@ func startNodeMonitoring() {
 
 func initializePriorityPeersDestinationCacheHybridStorage(mainBlockService *service.BlockService, lastHeight uint32) error {
 	var (
-		firstHeight uint32
 		blocks      []*model.Block
 		err         error
+		firstHeight = uint32(constant.BatchReceiptLookBackHeight)
 	)
 	if lastHeight > constant.MinRollbackBlocks {
-		firstHeight = lastHeight - constant.MinRollbackBlocks
+		firstHeight = lastHeight + constant.BatchReceiptLookBackHeight - constant.MinRollbackBlocks
+	}
+
+	if firstHeight > lastHeight {
+		return nil
 	}
 
 	blocks, err = mainBlockService.GetBlocksFromHeight(firstHeight, lastHeight, false)
@@ -909,7 +913,7 @@ func initializePriorityPeersDestinationCacheHybridStorage(mainBlockService *serv
 	}
 
 	for _, block := range blocks {
-		priorityPeersAtHeight, err := mainBlockService.ReceiptService.GetPriorityPeersAtHeight(block.GetBlocksmithPublicKey(), block.GetHeight())
+		priorityPeersAtHeight, err := mainBlockService.ReceiptService.GetPriorityPeersAtHeight(block.GetBlocksmithPublicKey(), block.GetHeight()-constant.BatchReceiptLookBackHeight)
 		if err != nil {
 			return err
 		}
