@@ -882,15 +882,16 @@ func (rs *ReceiptService) ValidateLinkedReceipts(
 
 	for i := len(priorityPeerAtHeights) - 1; i >= 0; i-- {
 		var (
-			lookBackHeight       = priorityPeerAtHeights[i]
-			lookBackBlock        *model.Block
-			lookBackBlockReceipt *model.PublishedReceipt
-			receiptToValidate    *model.PublishedReceipt
+			priorityLookbackHeight = priorityPeerAtHeights[i]
+			lookBackHeight         = priorityPeerAtHeights[i] + constant.BatchReceiptLookBackHeight
+			lookBackBlock          *model.Block
+			lookBackBlockReceipt   *model.PublishedReceipt
+			receiptToValidate      *model.PublishedReceipt
 		)
 		if maxLookBackwardSteps == 0 {
 			break
 		}
-		if lookBackHeight > blockToValidate.GetHeight()-constant.BatchReceiptLookBackHeight {
+		if priorityLookbackHeight > blockToValidate.GetHeight()-constant.BatchReceiptLookBackHeight {
 			continue
 		}
 		maxLookBackwardSteps--
