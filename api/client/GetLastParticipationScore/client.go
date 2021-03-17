@@ -47,54 +47,52 @@
 //
 // IMPORTANT: The above copyright notice and this permission notice
 // shall be included in all copies or substantial portions of the Software.
-package service
+package main
 
 import (
-	"github.com/zoobc/zoobc-core/common/model"
-	coreService "github.com/zoobc/zoobc-core/core/service"
+	"context"
+	"encoding/json"
+	"flag"
+	"fmt"
+
+	log "github.com/sirupsen/logrus"
+	rpcModel "github.com/zoobc/zoobc-core/common/model"
+	rpcService "github.com/zoobc/zoobc-core/common/service"
+	"github.com/zoobc/zoobc-core/common/util"
+	"google.golang.org/grpc"
 )
 
-type (
-	// ParticipationScoreInterface represents interface for ParticipationScoreService
-	ParticipationScoreInterface interface {
-		GetParticipationScores(params *model.GetParticipationScoresRequest) (*model.GetParticipationScoresResponse, error)
-		GetLatestParticipationScoreByNodeID(params *model.GetLatestParticipationScoreByNodeIDRequest) (*model.ParticipationScore, error)
-	}
-
-	// ParticipationScoreService represents struct of ParticipationScoreService
-	ParticipationScoreService struct {
-		ParticipationScoreService coreService.ParticipationScoreServiceInterface
-	}
-)
-
-var participationScoreServiceInstance *ParticipationScoreService
-
-// NewParticipationScoreService creates a singleton instance of ParticipationScoreService
-func NewParticipationScoreService(
-	participationScoreService coreService.ParticipationScoreServiceInterface) *ParticipationScoreService {
-	if participationScoreServiceInstance == nil {
-		participationScoreServiceInstance = &ParticipationScoreService{
-			ParticipationScoreService: participationScoreService,
+func main() {
+	var ip string
+	flag.StringVar(&ip, "ip", "", "Usage")
+	flag.Parse()
+	if len(ip) < 1 {
+		config, err := util.LoadConfig("../../../", "config", "toml", "")
+		if err != nil {
+			log.Fatal(err)
+		} else {
+			ip = fmt.Sprintf(":%d", config.RPCAPIPort)
 		}
 	}
-	return participationScoreServiceInstance
-}
-
-// GetParticipationScores fetches participation scores for given height range
-func (pss *ParticipationScoreService) GetParticipationScores(
-	params *model.GetParticipationScoresRequest,
-) (*model.GetParticipationScoresResponse, error) {
-	participationScores, err := pss.ParticipationScoreService.GetParticipationScoreByBlockHeightRange(params.FromHeight, params.ToHeight)
-	return &model.GetParticipationScoresResponse{ParticipationScores: participationScores}, err
-}
-
-// GetParticipationScores fetches participation scores for given height range
-// Note: if we pass NodeAddress, it must be formatted as address:port
-func (pss *ParticipationScoreService) GetLatestParticipationScoreByNodeID(
-	params *model.GetLatestParticipationScoreByNodeIDRequest,
-) (*model.ParticipationScore, error) {
-	if params.NodeAddress != "" {
-		return pss.ParticipationScoreService.GetLatestParticipationScoreByNodeAddress(params.NodeAddress)
+	conn, err := grpc.Dial(ip, grpc.WithInsecure())
+	if err != nil {
+		log.Fatalf("did not connect: %s", err)
 	}
-	return pss.ParticipationScoreService.GetLatestParticipationScoreByNodeID(params.NodeID)
+	defer conn.Close()
+
+	c := rpcService.NewParticipationScoreServiceClient(conn)
+
+	response, err := c.GetLatestParticipationScoreByNodeID(context.Background(), &rpcModel.GetLatestParticipationScoreByNodeIDRequest{
+		NodeID:      3037184415664033759,
+		NodeAddress: "127.0.0.1:8001",
+	})
+
+	if err != nil {
+		log.Fatalf("error calling rpc_service.GetParticipationScores: %s", err)
+	}
+
+	j, _ := json.MarshalIndent(response, "", "  ")
+
+	log.Printf("response from remote rpc_service.GetParticipationScores(): %s", j)
+
 }
