@@ -166,7 +166,7 @@ func GetBlockByHeight(
 // GetBlockSmithsPubKeysBatchInRange get a batch of blocksmiths public keys (
 // for making linked receipts selection and validation more efficient)
 func GetBlockSmithsPubKeysBatchInRange(
-	fromHeight, toHeight uint32,
+	toHeight, fromHeight uint32,
 	queryExecutor query.ExecutorInterface,
 	blockQuery query.BlockQueryInterface,
 ) ([]*model.Block, error) {

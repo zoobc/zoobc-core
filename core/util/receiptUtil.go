@@ -479,7 +479,7 @@ func (ru *ReceiptUtil) GetMaxLookBackHeight(firstLookBackBlockHeight uint32) (ui
 	if err != nil {
 		return 0, err
 	}
-	maxBlockLookBackHeight := firstLookBackBlockHeight - netSize*2
+	maxBlockLookBackHeight := firstLookBackBlockHeight - 2*(netSize+constant.BatchReceiptLookBackHeight)
 	if maxBlockLookBackHeight < 0 {
 		maxBlockLookBackHeight = 0
 	}
