@@ -133,16 +133,15 @@ func (ps *PublishedReceiptService) ProcessPublishedReceipts(
 			unlinkedCount = len(validUnlinkedReceipts)
 		}
 		if len(linkedReceiptsToValidate) > 0 {
-			// validLinkedReceipts, err := ps.ReceiptService.ValidateLinkedReceipts(
-			// 	linkedReceiptsToValidate,
-			// 	block,
-			// 	int32(numberOfEstimatedReceipts),
-			// )
-			// if err != nil {
-			// 	return 0, 0, err
-			// }
-			// linkedCount = len(validLinkedReceipts)
-			linkedCount = len(linkedReceiptsToValidate)
+			validLinkedReceipts, err := ps.ReceiptService.ValidateLinkedReceipts(
+				linkedReceiptsToValidate,
+				block,
+				int32(numberOfEstimatedReceipts),
+			)
+			if err != nil {
+				return 0, 0, err
+			}
+			linkedCount = len(validLinkedReceipts)
 		}
 	}
 
