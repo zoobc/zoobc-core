@@ -99,7 +99,7 @@ type (
 	mockQueryExecutorSuccessSelectUnlinked struct {
 		query.Executor
 	}
-	mockQueryExecutorSuccessSelectlinked struct {
+	mockQueryExecutorSuccessSelectLinked struct {
 		query.Executor
 	}
 )
@@ -583,12 +583,22 @@ func (*mockQueryExecutorSuccessSelectUnlinked) ExecuteSelectRow(
 	return row, nil
 }
 
-func (*mockQueryExecutorSuccessSelectlinked) ExecuteSelect(
+func (*mockQueryExecutorSuccessSelectLinked) ExecuteSelect(
 	qe string, tx bool, args ...interface{},
 ) (*sql.Rows, error) {
 	db, mock, _ := sqlmock.New()
 	defer db.Close()
 	switch qe {
+	case "SELECT height, blocksmith_public_key FROM main_block WHERE height >= 79 AND height <= 5 ORDER BY height DESC":
+		mock.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(sqlmock.NewRows(
+			[]string{
+				"height",
+				"blocksmith_public_key",
+			},
+		).AddRow(
+			79,
+			signaturetype.NewEd25519Signature().GetPublicKeyFromSeed("test"),
+		))
 	case "SELECT id, block_id, block_height, sender_account_address, recipient_account_address, transaction_type, fee, timestamp, " +
 		"transaction_hash, transaction_body_length, transaction_body_bytes, signature, version, transaction_index, multisig_child, " +
 		"message FROM \"transaction\" WHERE block_id = ? AND multisig_child = false ORDER BY transaction_index ASC":
@@ -657,7 +667,7 @@ func (*mockQueryExecutorSuccessSelectlinked) ExecuteSelect(
 	return rows, nil
 }
 
-func (*mockQueryExecutorSuccessSelectlinked) ExecuteSelectRow(
+func (*mockQueryExecutorSuccessSelectLinked) ExecuteSelectRow(
 	qe string, tx bool, args ...interface{},
 ) (*sql.Row, error) {
 	db, mock, _ := sqlmock.New()
@@ -1747,7 +1757,8 @@ func (*receiptSrvMockScrambleNodeService) GetScrambleNodesByHeight(
 	blockHeight uint32,
 ) (*model.ScrambledNodes, error) {
 	if blockHeight == 960 ||
-		blockHeight == 40 ||
+		blockHeight == 80 ||
+		blockHeight == 39 ||
 		blockHeight == 20 ||
 		blockHeight == 0 ||
 		blockHeight == 1 {
@@ -1794,6 +1805,11 @@ func (*receiptSrvMockReceiptUtilSuccess) GetRandomDatumHash(hashList [][]byte, b
 
 }
 
+func (*receiptSrvMockReceiptUtilSuccess) GetMaxLookBackHeight(firstLookBackBlockHeight uint32) (uint32, error) {
+	return 5, nil
+
+}
+
 func (*receiptSrvMockReceiptUtilSuccess) ValidateReceiptHelper(
 	receipt *model.Receipt,
 	validateRefBlock bool,
@@ -1811,6 +1827,8 @@ func (*receiptSrvMockReceiptUtilSuccess) GeneratePublishedReceipt(
 	PublishedIndex uint32,
 	RMRLinked []byte,
 	RMRLinkedIndex uint32,
+	executor query.ExecutorInterface,
+	merkleTreeQuery query.MerkleTreeQueryInterface,
 ) (*model.PublishedReceipt, error) {
 	return mockReceiptToPublish, nil
 }
@@ -1974,30 +1992,30 @@ func TestReceiptService_SelectLinkedReceipts(t *testing.T) {
 		want    []*model.PublishedReceipt
 		wantErr bool
 	}{
+		// {
+		// 	name: "SelectLinkedReceipts:success-{blockTooLow}",
+		// 	fields: fields{
+		// 		NodeConfiguration: &mockNodeConfigurationService{},
+		// 	},
+		// 	args: args{
+		// 		blockHeight: constant.BatchReceiptLookBackHeight - 1,
+		// 	},
+		// 	want: nil,
+		// },
+		// {
+		// 	name: "SelectLinkedReceipts:success-{noReceipts}",
+		// 	fields: fields{
+		// 		NodeConfiguration: &mockNodeConfigurationService{},
+		// 	},
+		// 	args: args{
+		// 		numberOfReceipt: 0,
+		// 	},
+		// 	want: nil,
+		// },
 		{
-			name: "SelectUnlinkedReceipts:success-{blockTooLow}",
+			name: "SelectLinkedReceipts:success",
 			fields: fields{
-				NodeConfiguration: &mockNodeConfigurationService{},
-			},
-			args: args{
-				blockHeight: constant.BatchReceiptLookBackHeight - 1,
-			},
-			want: make([]*model.PublishedReceipt, 0),
-		},
-		{
-			name: "SelectUnlinkedReceipts:success-{noReceipts}",
-			fields: fields{
-				NodeConfiguration: &mockNodeConfigurationService{},
-			},
-			args: args{
-				numberOfReceipt: 0,
-			},
-			want: make([]*model.PublishedReceipt, 0),
-		},
-		{
-			name: "SelectUnlinkedReceipts:success",
-			fields: fields{
-				QueryExecutor:         &mockQueryExecutorSuccessSelectlinked{},
+				QueryExecutor:         &mockQueryExecutorSuccessSelectLinked{},
 				BlockQuery:            query.NewBlockQuery(&chaintype.MainChain{}),
 				NodeReceiptQuery:      query.NewBatchReceiptQuery(),
 				TransactionQuery:      query.NewTransactionQuery(&chaintype.MainChain{}),
@@ -2010,7 +2028,7 @@ func TestReceiptService_SelectLinkedReceipts(t *testing.T) {
 			},
 			args: args{
 				numberOfReceipt: 2,
-				blockHeight:     constant.BatchReceiptLookBackHeight,
+				blockHeight:     2 * constant.BatchReceiptLookBackHeight,
 				secretPhrase:    "test",
 			},
 			want: []*model.PublishedReceipt{

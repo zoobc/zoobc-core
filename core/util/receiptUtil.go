@@ -115,13 +115,20 @@ type (
 			transactionQuery query.TransactionQueryInterface,
 		) ([][]byte, error)
 		GetRandomDatumHash(hashList [][]byte, blockSeed []byte) (rndDatumHash []byte, rndDatumType uint32, err error)
+		GetMaxLookBackHeight(firstLookBackBlockHeight uint32) (uint32, error)
 	}
 
-	ReceiptUtil struct{}
+	ReceiptUtil struct {
+		NodeAddressInfoStorage storage.CacheStorageInterface
+	}
 )
 
-func NewReceiptUtil() *ReceiptUtil {
-	return &ReceiptUtil{}
+func NewReceiptUtil(
+	nodeAddressInfoStorage storage.CacheStorageInterface,
+) *ReceiptUtil {
+	return &ReceiptUtil{
+		NodeAddressInfoStorage: nodeAddressInfoStorage,
+	}
 }
 
 // buildBlockDatumHashes build an array containing all hashes of data secured by the block (transactions and previous block)
@@ -465,4 +472,33 @@ func (ru *ReceiptUtil) IsPublishedReceiptEqual(a, b *model.PublishedReceipt) err
 	}
 
 	return nil
+}
+
+func (ru *ReceiptUtil) GetMaxLookBackHeight(firstLookBackBlockHeight uint32) (uint32, error) {
+	netSize, err := ru.getNetworkSize()
+	if err != nil {
+		return 0, err
+	}
+	maxBlockLookBackHeight := firstLookBackBlockHeight - netSize*2
+	if maxBlockLookBackHeight < 0 {
+		maxBlockLookBackHeight = 0
+	}
+	return maxBlockLookBackHeight, nil
+}
+
+func (ru *ReceiptUtil) getNetworkSize() (uint32, error) {
+	var (
+		nodeAddresses []*model.NodeAddressInfo
+		keyGetItem    = storage.NodeAddressInfoStorageKey{
+			Statuses: []model.NodeAddressStatus{
+				model.NodeAddressStatus_NodeAddressConfirmed,
+				model.NodeAddressStatus_NodeAddressPending,
+			},
+		}
+		err = ru.NodeAddressInfoStorage.GetItem(keyGetItem, &nodeAddresses)
+	)
+	if err != nil {
+		return 0, err
+	}
+	return uint32(len(nodeAddresses)), nil
 }

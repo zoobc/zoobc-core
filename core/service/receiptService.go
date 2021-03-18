@@ -472,6 +472,7 @@ func (rs *ReceiptService) SelectLinkedReceipts(
 		// note: numberOfReceipts = number of max priority peers the node has
 		maxLookBackwardSteps           = numberOfReceipt
 		rmrLinkedIndex, publishedIndex uint32
+		firstLookBackBlockHeight       = blockHeight - 1
 	)
 
 	// possible no connected node || lastblock height is too low to select receipts
@@ -483,15 +484,32 @@ func (rs *ReceiptService) SelectLinkedReceipts(
 	if numberOfUnlinkedReceipts > 0 {
 		publishedIndex = rmrLinkedIndex + numberOfUnlinkedReceipts + 1
 	}
-	// loop backwards searching for blocks where current node was one of the block creators (when was in scramble node list)
-	// TODO: add a limit to the number of max blocks that can be scanned
-	for lookBackHeightInt := int32(blockHeight - 1); lookBackHeightInt >= 0; lookBackHeightInt-- {
-		if lookBackHeightInt < constant.BatchReceiptLookBackHeight {
+
+	// get the maximum look back block height (= first block to look back - net size * 2)
+	maxBlockLookBackHeight, err := rs.ReceiptUtil.GetMaxLookBackHeight(firstLookBackBlockHeight)
+	if err != nil {
+		return nil, err
+	}
+
+	// get a batch of all blocksmiths public keys within the (max) range we want to 'look back' at
+	blockSmithsPubKeysBatch, err := util.GetBlockSmithsPubKeysBatchInRange(
+		firstLookBackBlockHeight,
+		maxBlockLookBackHeight,
+		rs.QueryExecutor,
+		rs.BlockQuery,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, lookBackBlockSmithPubKey := range blockSmithsPubKeysBatch {
+		var lookBackHeight = lookBackBlockSmithPubKey.Height
+		if lookBackHeight < constant.BatchReceiptLookBackHeight || maxLookBackwardSteps == 0 {
 			break
 		}
+
 		var (
 			refPublishedReceipt     = query.NewPublishedReceipt()
-			lookBackHeight          = uint32(lookBackHeightInt)
 			unlinkedReceiptLookback = lookBackHeight - constant.BatchReceiptLookBackHeight
 		)
 
@@ -499,16 +517,7 @@ func (rs *ReceiptService) SelectLinkedReceipts(
 			break
 		}
 
-		// get the block creator's pub key
-		lookBackBlock, err := util.GetBlockByHeight(
-			lookBackHeight,
-			rs.QueryExecutor,
-			rs.BlockQuery,
-		)
-		if err != nil {
-			return nil, err
-		}
-		priorityPeersAtHeight, err := rs.getPriorityPeersAtHeight(lookBackBlock.BlocksmithPublicKey, unlinkedReceiptLookback)
+		priorityPeersAtHeight, err := rs.getPriorityPeersAtHeight(lookBackBlockSmithPubKey.BlocksmithPublicKey, unlinkedReceiptLookback)
 		if err != nil || len(priorityPeersAtHeight) == 0 {
 			if err != nil {
 				rs.Logger.Error(err)
@@ -689,37 +698,47 @@ func (rs *ReceiptService) ValidateLinkedReceipts(
 	maxLookBackwardSteps int32,
 ) (validReceipts []*model.PublishedReceipt, err error) {
 	var (
-		linkedReceipts []*model.PublishedReceipt
+		linkedReceipts           []*model.PublishedReceipt
+		firstLookBackBlockHeight = blockToValidate.Height - 1
 	)
 
 	if receiptsToValidate == nil || len(receiptsToValidate) == 0 {
 		return receiptsToValidate, nil
 	}
 
+	// get the maximum look back block height (= first block to look back - net size * 2)
+	maxBlockLookBackHeight, err := rs.ReceiptUtil.GetMaxLookBackHeight(firstLookBackBlockHeight)
+	if err != nil {
+		return nil, err
+	}
+
+	// get a batch of all blocksmiths public keys within the (max) range we want to 'look back' at
+	blockSmithsPubKeysBatch, err := util.GetBlockSmithsPubKeysBatchInRange(
+		firstLookBackBlockHeight,
+		maxBlockLookBackHeight,
+		rs.QueryExecutor,
+		rs.BlockQuery,
+	)
+	if err != nil {
+		return nil, err
+	}
+
 	// loop backwards searching for blocks where current block creators was in priority peers of another block creator
-	for lookBackHeightInt := int32(blockToValidate.Height - 1); lookBackHeightInt >= 0; lookBackHeightInt-- {
-		if lookBackHeightInt < constant.BatchReceiptLookBackHeight {
+	for _, lookBackBlockSmithPubKey := range blockSmithsPubKeysBatch {
+		var lookBackHeight = lookBackBlockSmithPubKey.Height
+		if lookBackHeight < constant.BatchReceiptLookBackHeight || maxLookBackwardSteps == 0 {
 			break
-		}
-		var (
-			lookBackHeight          = uint32(lookBackHeightInt)
-			unlinkedReceiptLookback = lookBackHeight - constant.BatchReceiptLookBackHeight
-			lookBackBlockReceipt    *model.PublishedReceipt
-			lookBackBlock, err      = util.GetBlockByHeight(lookBackHeight, rs.QueryExecutor, rs.BlockQuery)
-			receiptToValidate       *model.PublishedReceipt
-		)
-		// this should not happen, since we already verify that this block exists when validating the receipt
-		if err != nil {
-			return nil, err
 		}
 
-		if maxLookBackwardSteps == 0 {
-			break
-		}
+		var (
+			unlinkedReceiptLookBack = lookBackHeight - constant.BatchReceiptLookBackHeight
+			lookBackBlockReceipt    *model.PublishedReceipt
+			receiptToValidate       *model.PublishedReceipt
+		)
 
 		// check if the new block's creator is one of Priority Peers at look back height and if not skip this block and continue
 		// if not returns and empty peer array
-		priorityPeersAtHeight, err := rs.getPriorityPeersAtHeight(lookBackBlock.BlocksmithPublicKey, unlinkedReceiptLookback)
+		priorityPeersAtHeight, err := rs.getPriorityPeersAtHeight(lookBackBlockSmithPubKey.BlocksmithPublicKey, unlinkedReceiptLookBack)
 		if err != nil || len(priorityPeersAtHeight) == 0 {
 			if err != nil {
 				rs.Logger.Error(err)
@@ -737,7 +756,13 @@ func (rs *ReceiptService) ValidateLinkedReceipts(
 			continue
 		}
 
+		var lookBackBlock *model.Block
 		// get block transactions and published receipts
+		lookBackBlock, err = util.GetBlockByHeight(lookBackHeight, rs.QueryExecutor, rs.BlockQuery)
+		if err != nil {
+			return nil, err
+		}
+
 		err = util.PopulateBlockData(lookBackBlock, rs.QueryExecutor, rs.TransactionQuery, rs.PublishedReceiptQuery)
 		if err != nil {
 			return nil, err
