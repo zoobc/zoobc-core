@@ -47,79 +47,52 @@
 //
 // IMPORTANT: The above copyright notice and this permission notice
 // shall be included in all copies or substantial portions of the Software.
-package util
+package main
 
 import (
-	"testing"
+	"context"
+	"encoding/json"
+	"flag"
+	"fmt"
+
+	log "github.com/sirupsen/logrus"
+	rpcModel "github.com/zoobc/zoobc-core/common/model"
+	rpcService "github.com/zoobc/zoobc-core/common/service"
+	"github.com/zoobc/zoobc-core/common/util"
+	"google.golang.org/grpc"
 )
 
-func TestCalculateParticipationScore(t *testing.T) {
-	type args struct {
-		linkedReceipt   uint32
-		unlinkedReceipt uint32
-		networkSize     int64
+func main() {
+	var ip string
+	flag.StringVar(&ip, "ip", "", "Usage")
+	flag.Parse()
+	if len(ip) < 1 {
+		config, err := util.LoadConfig("../../../", "config", "toml", "")
+		if err != nil {
+			log.Fatal(err)
+		} else {
+			ip = fmt.Sprintf(":%d", config.RPCAPIPort)
+		}
 	}
-	tests := []struct {
-		name string
-		args args
-		want int64
-	}{
-		{
-			name: "wantSuccess:full-minus",
-			args: args{
-				linkedReceipt:   0,
-				unlinkedReceipt: 0,
-				networkSize:     100,
-			},
-			want: -992063492063440,
-		},
-		{
-			name: "wantSuccess:max-plus",
-			args: args{
-				linkedReceipt:   5,
-				unlinkedReceipt: 5,
-				networkSize:     100,
-			},
-			want: 248015873015760,
-		},
-		{
-			name: "wantSuccess:score-lies-on-center-value",
-			args: args{
-				linkedReceipt:   4,
-				unlinkedReceipt: 0,
-				networkSize:     100,
-			},
-			want: 0,
-		},
-		{
-			name: "wantSuccess:score-below-center-value",
-			args: args{
-				linkedReceipt:   0,
-				unlinkedReceipt: 2,
-				networkSize:     100,
-			},
-			want: -496031746031720,
-		},
-		{
-			name: "wantSuccess:score-above-center-value",
-			args: args{
-				linkedReceipt:   0,
-				unlinkedReceipt: 5,
-				networkSize:     100,
-			},
-			want: 41335978835960,
-		},
+	conn, err := grpc.Dial(ip, grpc.WithInsecure())
+	if err != nil {
+		log.Fatalf("did not connect: %s", err)
 	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got := CalculateParticipationScore(
-				tt.args.linkedReceipt,
-				tt.args.unlinkedReceipt,
-				tt.args.networkSize,
-			)
-			if got != tt.want {
-				t.Errorf("CalculateParticipationScore() = %v, want %v", got, tt.want)
-			}
-		})
+	defer conn.Close()
+
+	c := rpcService.NewParticipationScoreServiceClient(conn)
+
+	response, err := c.GetLatestParticipationScoreByNodeID(context.Background(), &rpcModel.GetLatestParticipationScoreByNodeIDRequest{
+		NodeID:      3037184415664033759,
+		NodeAddress: "127.0.0.1:8001",
+	})
+
+	if err != nil {
+		log.Fatalf("error calling rpc_service.GetParticipationScores: %s", err)
 	}
+
+	j, _ := json.MarshalIndent(response, "", "  ")
+
+	log.Printf("response from remote rpc_service.GetParticipationScores(): %s", j)
+
 }

@@ -586,6 +586,7 @@ func (bs *BlockService) ProcessPushBlock(previousBlock,
 			popScore := commonUtils.CalculateParticipationScore(
 				uint32(linkedCount),
 				uint32(unlinkedCount),
+				int64(len(activeRegistries)),
 			)
 			err = bs.updatePopScore(popScore, previousBlock, block)
 			if err != nil {

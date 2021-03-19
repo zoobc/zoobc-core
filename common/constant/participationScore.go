@@ -70,6 +70,17 @@ const (
 	DefaultParticipationScore int64 = MaxParticipationScore / 5
 	// Starting score for pre seed nodes (registered at genesis)
 	GenesisParticipationScore int64 = MaxParticipationScore
-	IncreaseScoreMod          int64 = MaxScoreChange / 10
-	DecreaseScoreMod          int64 = -(MaxScoreChange / 5)
+
+	// CONSTANT. 1 week worth of blocks
+	BlocksPerPeriod = 1440 * 4 * 7
+	// CONSTANT. Base score modifier (if the network has only 1 node making all the blocks)
+	ScoreChangeUnit = MaxParticipationScore / BlocksPerPeriod
+	// CONSTANT: multiplier for when receipts are > half -- means node making blocks with FULL receipts
+	// will take 12 weeks (3 months) to go from 0 to max score
+	IncreaseScoreDivider = 12
+	// CONSTANT: multiplier for when receipts are < half -- means node making blocks, but with no receipts, will live 2 weeks from full score
+	DecreaseScoreDivider = 2
+	IncreaseScoreUnit    = ScoreChangeUnit / IncreaseScoreDivider
+	DecreaseScoreUnit    = ScoreChangeUnit / DecreaseScoreDivider
+	ReceiptScorePivot    = PriorityStrategyMaxPriorityPeers - 1
 )

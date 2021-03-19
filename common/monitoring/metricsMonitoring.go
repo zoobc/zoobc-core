@@ -145,7 +145,11 @@ var (
 )
 
 func Handler() http.Handler {
-	return promhttp.Handler()
+	return promhttp.InstrumentMetricHandler(
+		prometheus.DefaultRegisterer, promhttp.HandlerFor(prometheus.DefaultGatherer, promhttp.HandlerOpts{
+			MaxRequestsInFlight: 5,
+		}),
+	)
 }
 
 func GetNodeStatus() model.GetNodeStatusResponse {
