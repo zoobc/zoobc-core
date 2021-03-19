@@ -72,7 +72,7 @@ var (
 	SpineChainSmithIdlePeriod = 500 * time.Millisecond
 	// SpineChainSmithingPeriod intervals between spine blocks in seconds
 	// reduce to 24 hours
-	SpineChainSmithingPeriod = int64(24 * OneHour)
+	SpineChainSmithingPeriod = 24 * OneHour
 	MainChainSmithIdlePeriod = 5 * time.Second
 	// MainChainSmithingPeriod one main block every 15 seconds + block pool delay (max +30 seconds)
 	MainChainSmithingPeriod = int64(15)

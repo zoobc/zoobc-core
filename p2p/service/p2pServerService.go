@@ -518,15 +518,17 @@ func (ps *P2PServerService) SendBlock(
 			)
 		}
 
-		receipts, err = ps.needToGenerateReceipt(requester, func(isGenerate bool) ([]*model.Receipt, error) {
-			receipt, e := blockService.ReceiveBlock(senderPublicKey, lastBlock, block, ps.NodeSecretPhrase, peer, isGenerate)
-			if e != nil {
-				return []*model.Receipt{}, e
-			}
-			return []*model.Receipt{
-				receipt,
-			}, nil
-		})
+		receipts, err = ps.needToGenerateReceipt(
+			// requester,
+			func(isGenerate bool) ([]*model.Receipt, error) {
+				receipt, e := blockService.ReceiveBlock(senderPublicKey, lastBlock, block, ps.NodeSecretPhrase, peer, isGenerate)
+				if e != nil {
+					return []*model.Receipt{}, e
+				}
+				return []*model.Receipt{
+					receipt,
+				}, nil
+			})
 		if err != nil {
 			return nil, status.Error(codes.Internal, err.Error())
 		}
@@ -600,13 +602,15 @@ func (ps *P2PServerService) SendTransaction(
 		if err != nil {
 			return nil, err
 		}
-		receipts, err = ps.needToGenerateReceipt(requester, func(isGenerate bool) ([]*model.Receipt, error) {
-			receipt, e := mempoolService.ReceivedTransaction(senderPublicKey, transactionBytes, lastBlockCacheFormat, ps.NodeSecretPhrase, isGenerate)
-			if e != nil {
-				return []*model.Receipt{}, e
-			}
-			return []*model.Receipt{receipt}, nil
-		})
+		receipts, err = ps.needToGenerateReceipt(
+			// requester,
+			func(isGenerate bool) ([]*model.Receipt, error) {
+				receipt, e := mempoolService.ReceivedTransaction(senderPublicKey, transactionBytes, lastBlockCacheFormat, ps.NodeSecretPhrase, isGenerate)
+				if e != nil {
+					return []*model.Receipt{}, e
+				}
+				return []*model.Receipt{receipt}, nil
+			})
 		if err != nil {
 			return nil, err
 		}
@@ -674,15 +678,17 @@ func (ps *P2PServerService) SendBlockTransactions(
 		if err != nil {
 			return nil, err
 		}
-		receipts, err = ps.needToGenerateReceipt(requester, func(isGenerate bool) ([]*model.Receipt, error) {
-			return mempoolService.ReceivedBlockTransactions(
-				senderPublicKey,
-				transactionsBytes,
-				lastBlockCacheFormat,
-				ps.NodeSecretPhrase,
-				isGenerate,
-			)
-		})
+		receipts, err = ps.needToGenerateReceipt(
+			// requester,
+			func(isGenerate bool) ([]*model.Receipt, error) {
+				return mempoolService.ReceivedBlockTransactions(
+					senderPublicKey,
+					transactionsBytes,
+					lastBlockCacheFormat,
+					ps.NodeSecretPhrase,
+					isGenerate,
+				)
+			})
 
 		if err != nil {
 			return nil, err
@@ -749,7 +755,7 @@ func (ps *P2PServerService) RequestDownloadFile(
 }
 
 func (ps *P2PServerService) needToGenerateReceipt(
-	requester *model.Node,
+	// requester *model.Node,
 	process func(isGenerate bool) ([]*model.Receipt, error),
 ) (receipts []*model.Receipt, err error) {
 	var (
