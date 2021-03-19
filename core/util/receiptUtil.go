@@ -55,11 +55,12 @@ import (
 	"database/sql"
 	"encoding/hex"
 	"errors"
+	"math/rand"
+
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/crypto"
 	"github.com/zoobc/zoobc-core/common/query"
 	p2pUtil "github.com/zoobc/zoobc-core/p2p/util"
-	"math/rand"
 
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/constant"
@@ -475,14 +476,20 @@ func (ru *ReceiptUtil) IsPublishedReceiptEqual(a, b *model.PublishedReceipt) err
 }
 
 func (ru *ReceiptUtil) GetMaxLookBackHeight(firstLookBackBlockHeight uint32) (uint32, error) {
+	var maxBlockLookBackHeight uint32
 	netSize, err := ru.getNetworkSize()
 	if err != nil {
 		return 0, err
 	}
-	maxBlockLookBackHeight := firstLookBackBlockHeight - 2*(netSize+constant.BatchReceiptLookBackHeight)
-	if maxBlockLookBackHeight < 0 {
+
+	subtractor := 2 * (netSize + constant.BatchReceiptLookBackHeight)
+
+	if firstLookBackBlockHeight < subtractor {
 		maxBlockLookBackHeight = 0
+	} else {
+		maxBlockLookBackHeight = firstLookBackBlockHeight - subtractor
 	}
+
 	return maxBlockLookBackHeight, nil
 }
 

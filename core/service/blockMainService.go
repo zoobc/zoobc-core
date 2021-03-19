@@ -1795,7 +1795,6 @@ func (bs *BlockService) ProcessQueueBlock(block *model.Block, peer *model.Peer) 
 	if len(txRequiredByBlock) == 0 {
 		err := bs.ProcessCompletedBlock(block)
 		if err != nil {
-			bs.Logger.Error("ProcessQueueBlock") //STEF temp delete
 			return false, err
 		}
 		return true, nil
@@ -1839,7 +1838,6 @@ func (bs *BlockService) ReceivedValidatedBlockTransactionsListener() observer.Li
 				for _, block := range completedBlocks {
 					err := bs.ProcessCompletedBlock(block)
 					if err != nil {
-						bs.Logger.Error("ReceivedValidatedBlockTransactionsListener") //STEF temp delete
 						bs.Logger.Warn(blocker.BlockErr, err.Error())
 					}
 				}

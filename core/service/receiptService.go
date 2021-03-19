@@ -680,7 +680,7 @@ func (rs *ReceiptService) ValidateLinkedReceipts(
 		firstLookBackBlockHeight = blockToValidate.Height - 1
 	)
 
-	if receiptsToValidate == nil || len(receiptsToValidate) == 0 {
+	if receiptsToValidate == nil {
 		return receiptsToValidate, nil
 	}
 
@@ -753,7 +753,8 @@ func (rs *ReceiptService) ValidateLinkedReceipts(
 		for _, lookBackBlockReceipt = range lookBackBlock.GetPublishedReceipts() {
 			// did the new block creator have an unlinked receipt in ref block?
 			if lookBackBlockReceipt.RMRLinked == nil {
-				if bytes.Equal(lookBackBlockReceipt.RMRLinked, []byte{}) && bytes.Equal(lookBackBlockReceipt.Receipt.RecipientPublicKey, blockToValidate.BlocksmithPublicKey) {
+				if bytes.Equal(lookBackBlockReceipt.RMRLinked, []byte{}) &&
+					bytes.Equal(lookBackBlockReceipt.Receipt.RecipientPublicKey, blockToValidate.BlocksmithPublicKey) {
 					receiptFound = true
 					break
 				}
