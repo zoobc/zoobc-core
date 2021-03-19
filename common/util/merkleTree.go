@@ -51,6 +51,7 @@ package util
 
 import (
 	"bytes"
+	"errors"
 	"math"
 
 	"github.com/zoobc/zoobc-core/common/blocker"
@@ -67,7 +68,7 @@ type MerkleRootInterface interface {
 	) (root []byte, err error)
 	GetIntermediateHashes(leafHash *bytes.Buffer, leafIndex int32) []*bytes.Buffer
 	FlattenIntermediateHashes(intermediateHashes [][]byte) []byte
-	RestoreIntermediateHashes(flattenIntermediateHashes []byte) [][]byte
+	RestoreIntermediateHashes(flattenIntermediateHashes []byte) ([][]byte, error)
 	ToBytes() (root, tree []byte)
 	FromBytes(tree, root []byte) [][]*bytes.Buffer
 }
@@ -206,15 +207,18 @@ func (*MerkleRoot) FlattenIntermediateHashes(intermediateHashes [][]byte) []byte
 	return result
 }
 
-func (*MerkleRoot) RestoreIntermediateHashes(flattenIntermediateHashes []byte) [][]byte {
+func (*MerkleRoot) RestoreIntermediateHashes(flattenIntermediateHashes []byte) ([][]byte, error) {
 	var (
 		result [][]byte
 	)
+	if len(flattenIntermediateHashes)%constant.ReceiptHashSize != 0 {
+		return nil, errors.New("InvalidIntermediateHashes")
+	}
 	intermediateHashesSize := len(flattenIntermediateHashes) / constant.ReceiptHashSize
 	for i := 0; i < intermediateHashesSize; i++ {
 		result = append(result, flattenIntermediateHashes[i*constant.ReceiptHashSize:(i+1)*constant.ReceiptHashSize])
 	}
-	return result
+	return result, nil
 }
 
 // ToBytes build []byte from HashTree which is a [][]*bytes.Buffer

@@ -163,6 +163,30 @@ func GetBlockByHeight(
 	return &block, nil
 }
 
+// GetBlockSmithsPubKeysBatchInRange get a batch of blocksmiths public keys (
+// for making linked receipts selection and validation more efficient)
+func GetBlockSmithsPubKeysBatchInRange(
+	toHeight, fromHeight uint32,
+	queryExecutor query.ExecutorInterface,
+	blockQuery query.BlockQueryInterface,
+) ([]*model.Block, error) {
+	var (
+		rows *sql.Rows
+		err  error
+		bl   []*model.Block
+	)
+	qry := blockQuery.GetBlockSmithPublicKeyByHeightRange(fromHeight, toHeight)
+	rows, err = queryExecutor.ExecuteSelect(qry, false)
+	if err != nil {
+		return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
+	}
+	bl, err = blockQuery.BuildBlockSmithsPubKeys(bl, rows)
+	if err != nil {
+		return nil, err
+	}
+	return bl, nil
+}
+
 // PopulateBlockData add transactions and receipts to the block
 func PopulateBlockData(
 	block *model.Block,

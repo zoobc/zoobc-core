@@ -456,7 +456,9 @@ func initiateMainInstance() {
 		scrambleNodeStorage,
 	)
 
-	receiptUtil = coreUtil.NewReceiptUtil()
+	receiptUtil = coreUtil.NewReceiptUtil(
+		nodeAddressInfoStorage,
+	)
 
 	receiptService = service.NewReceiptService(
 		query.NewBatchReceiptQuery(),
@@ -1271,6 +1273,7 @@ func init() {
 }
 
 func main() {
+	runtime.SetMutexProfileFraction(5)
 
 	var god = goDaemon{}
 
