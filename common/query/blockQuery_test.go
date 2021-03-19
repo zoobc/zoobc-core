@@ -534,3 +534,43 @@ func TestBlockQuery_InsertBlocks(t *testing.T) {
 		})
 	}
 }
+
+func TestBlockQuery_GetBlockSmithPublicKeyByHeightRange(t *testing.T) {
+	type fields struct {
+		Fields    []string
+		TableName string
+		ChainType chaintype.ChainType
+	}
+	type args struct {
+		fromHeight uint32
+		toHeight   uint32
+	}
+	tests := []struct {
+		name   string
+		fields fields
+		args   args
+		want   string
+	}{
+		{
+			name:   "GetBlockSmithPublicKeyByHeightRange",
+			fields: fields(*mockBlockQuery),
+			args: args{
+				fromHeight: 0,
+				toHeight:   10,
+			},
+			want: "SELECT height, blocksmith_public_key FROM main_block WHERE height >= 0 AND height <= 10 ORDER BY height DESC",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			bq := &BlockQuery{
+				Fields:    tt.fields.Fields,
+				TableName: tt.fields.TableName,
+				ChainType: tt.fields.ChainType,
+			}
+			if got := bq.GetBlockSmithPublicKeyByHeightRange(tt.args.fromHeight, tt.args.toHeight); got != tt.want {
+				t.Errorf("GetBlockSmithPublicKeyByHeightRange() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
