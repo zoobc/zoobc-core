@@ -52,13 +52,15 @@ package util
 import (
 	"bytes"
 	"crypto/ed25519"
+	"database/sql"
 	"encoding/hex"
 	"errors"
+	"math/rand"
+
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/crypto"
 	"github.com/zoobc/zoobc-core/common/query"
 	p2pUtil "github.com/zoobc/zoobc-core/p2p/util"
-	"math/rand"
 
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/constant"
@@ -104,6 +106,8 @@ type (
 			PublishedIndex uint32,
 			RMRLinked []byte,
 			RMRLinkedIndex uint32,
+			executor query.ExecutorInterface,
+			merkleTreeQuery query.MerkleTreeQueryInterface,
 		) (*model.PublishedReceipt, error)
 		IsPublishedReceiptEqual(a, b *model.PublishedReceipt) error
 		BuildBlockDatumHashes(
@@ -112,13 +116,20 @@ type (
 			transactionQuery query.TransactionQueryInterface,
 		) ([][]byte, error)
 		GetRandomDatumHash(hashList [][]byte, blockSeed []byte) (rndDatumHash []byte, rndDatumType uint32, err error)
+		GetMaxLookBackHeight(firstLookBackBlockHeight uint32) (uint32, error)
 	}
 
-	ReceiptUtil struct{}
+	ReceiptUtil struct {
+		NodeAddressInfoStorage storage.CacheStorageInterface
+	}
 )
 
-func NewReceiptUtil() *ReceiptUtil {
-	return &ReceiptUtil{}
+func NewReceiptUtil(
+	nodeAddressInfoStorage storage.CacheStorageInterface,
+) *ReceiptUtil {
+	return &ReceiptUtil{
+		NodeAddressInfoStorage: nodeAddressInfoStorage,
+	}
 }
 
 // buildBlockDatumHashes build an array containing all hashes of data secured by the block (transactions and previous block)
@@ -192,22 +203,43 @@ func (ru *ReceiptUtil) GeneratePublishedReceipt(
 	PublishedIndex uint32,
 	RMRLinked []byte,
 	RMRLinkedIndex uint32,
+	executor query.ExecutorInterface,
+	merkleTreeQuery query.MerkleTreeQueryInterface,
 ) (*model.PublishedReceipt, error) {
 	var (
 		intermediateHashes [][]byte
 		merkle             = util.MerkleRoot{}
 	)
 
-	rcByte := ru.GetSignedReceiptBytes(receipt)
-	rcHash := sha3.Sum256(rcByte)
+	// TODO: integrate unit test
+	if RMRLinked != nil {
+		var merkleTree []byte
+		qry, args := merkleTreeQuery.GetMerkleTreeByRoot(RMRLinked)
+		row, err := executor.ExecuteSelectRow(qry, false, args...)
+		if err != nil {
+			return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
+		}
+		merkleTree, err = merkleTreeQuery.ScanTree(row)
+		if err != nil {
+			if err != sql.ErrNoRows {
+				return nil, blocker.NewBlocker(blocker.DBErr, "BlockScanErr, ", err.Error())
+			}
+			return nil, blocker.NewBlocker(blocker.DBRowNotFound, "BlockNotFound")
+		}
+		merkle.HashTree = merkle.FromBytes(merkleTree, RMRLinked)
 
-	intermediateHashesBuffer := merkle.GetIntermediateHashes(
-		bytes.NewBuffer(rcHash[:]),
-		int32(RMRLinkedIndex),
-	)
-	for _, buf := range intermediateHashesBuffer {
-		intermediateHashes = append(intermediateHashes, buf.Bytes())
+		rcByte := ru.GetSignedReceiptBytes(receipt)
+		rcHash := sha3.Sum256(rcByte)
+
+		intermediateHashesBuffer := merkle.GetIntermediateHashes(
+			bytes.NewBuffer(rcHash[:]),
+			int32(RMRLinkedIndex),
+		)
+		for _, buf := range intermediateHashesBuffer {
+			intermediateHashes = append(intermediateHashes, buf.Bytes())
+		}
 	}
+
 	return &model.PublishedReceipt{
 		Receipt:            receipt,
 		IntermediateHashes: merkle.FlattenIntermediateHashes(intermediateHashes),
@@ -441,4 +473,39 @@ func (ru *ReceiptUtil) IsPublishedReceiptEqual(a, b *model.PublishedReceipt) err
 	}
 
 	return nil
+}
+
+func (ru *ReceiptUtil) GetMaxLookBackHeight(firstLookBackBlockHeight uint32) (uint32, error) {
+	var maxBlockLookBackHeight uint32
+	netSize, err := ru.getNetworkSize()
+	if err != nil {
+		return 0, err
+	}
+
+	subtractor := 2 * (netSize + constant.BatchReceiptLookBackHeight)
+
+	if firstLookBackBlockHeight < subtractor {
+		maxBlockLookBackHeight = 0
+	} else {
+		maxBlockLookBackHeight = firstLookBackBlockHeight - subtractor
+	}
+
+	return maxBlockLookBackHeight, nil
+}
+
+func (ru *ReceiptUtil) getNetworkSize() (uint32, error) {
+	var (
+		nodeAddresses []*model.NodeAddressInfo
+		keyGetItem    = storage.NodeAddressInfoStorageKey{
+			Statuses: []model.NodeAddressStatus{
+				model.NodeAddressStatus_NodeAddressConfirmed,
+				model.NodeAddressStatus_NodeAddressPending,
+			},
+		}
+		err = ru.NodeAddressInfoStorage.GetItem(keyGetItem, &nodeAddresses)
+	)
+	if err != nil {
+		return 0, err
+	}
+	return uint32(len(nodeAddresses)), nil
 }

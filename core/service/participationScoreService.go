@@ -53,11 +53,14 @@ import (
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
+	"strconv"
+	"strings"
 )
 
 type (
 	ParticipationScoreServiceInterface interface {
 		GetLatestParticipationScoreByNodeID(nodeID int64) (*model.ParticipationScore, error)
+		GetLatestParticipationScoreByNodeAddress(nodeAddress string) (*model.ParticipationScore, error)
 		GetParticipationScoreByBlockHeightRange(fromBlockHeight, toBlockHeight uint32) ([]*model.ParticipationScore, error)
 	}
 
@@ -83,6 +86,36 @@ func (pss *ParticipationScoreService) GetLatestParticipationScoreByNodeID(nodeID
 		participationScore model.ParticipationScore
 	)
 	participationScoreQ, args := pss.ParticipationScoreQuery.GetParticipationScoreByNodeID(nodeID)
+	row, err := pss.QueryExecutor.ExecuteSelectRow(participationScoreQ, false, args...)
+	if err != nil {
+		return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
+	}
+	err = pss.ParticipationScoreQuery.Scan(&participationScore, row)
+	// if there aren't participation scores for this address/node, return 0
+	if err != nil {
+		return nil, nil
+	}
+	return &participationScore, nil
+}
+
+// GetParticipationScoreByNodeID get latest participation score of a node
+// nodeAddress must be a full address formatted as "address:port"
+func (pss *ParticipationScoreService) GetLatestParticipationScoreByNodeAddress(nodeAddress string) (*model.ParticipationScore,
+	error) {
+	var (
+		participationScore model.ParticipationScore
+		fullAddr           = strings.Split(nodeAddress, ":")
+		port               uint64
+	)
+	if len(fullAddr) != 2 {
+		return nil, blocker.NewBlocker(blocker.DBErr, "InvalidNodeAddress")
+	}
+	port, err := strconv.ParseUint(fullAddr[1], 10, 32)
+	if err != nil {
+		return nil, blocker.NewBlocker(blocker.DBErr, "InvalidNodePort")
+	}
+
+	participationScoreQ, args := pss.ParticipationScoreQuery.GetParticipationScoreByNodeAddress(fullAddr[0], uint32(port))
 	row, err := pss.QueryExecutor.ExecuteSelectRow(participationScoreQ, false, args...)
 	if err != nil {
 		return nil, blocker.NewBlocker(blocker.DBErr, err.Error())

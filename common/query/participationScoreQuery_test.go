@@ -232,3 +232,48 @@ func TestParticipationScoreQuery_GetParticipationScoresByBlockHeightRange(t *tes
 		})
 	}
 }
+
+func TestParticipationScoreQuery_GetParticipationScoreByNodeAddress(t *testing.T) {
+	type fields struct {
+		Fields    []string
+		TableName string
+	}
+	type args struct {
+		nodeAddress string
+		port        uint32
+	}
+	tests := []struct {
+		name     string
+		fields   fields
+		args     args
+		wantStr  string
+		wantArgs []interface{}
+	}{
+		{
+			name:   "wantSuccess",
+			fields: fields(*NewParticipationScoreQuery()),
+			args: args{
+				nodeAddress: "127.0.0.1",
+				port:        8080,
+			},
+			wantStr: "SELECT A.node_id, A.score, A.latest, A.height FROM participation_score as A INNER JOIN node_address_info as B ON A." +
+				"node_id = B.node_id WHERE B.address=? AND B.port=? AND A.latest=1 ORDER BY B.block_height DESC LIMIT 1",
+			wantArgs: []interface{}{"127.0.0.1", uint32(8080)},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ps := &ParticipationScoreQuery{
+				Fields:    tt.fields.Fields,
+				TableName: tt.fields.TableName,
+			}
+			gotStr, gotArgs := ps.GetParticipationScoreByNodeAddress(tt.args.nodeAddress, tt.args.port)
+			if gotStr != tt.wantStr {
+				t.Errorf("GetParticipationScoreByNodeAddress() gotStr = %v, want %v", gotStr, tt.wantStr)
+			}
+			if !reflect.DeepEqual(gotArgs, tt.wantArgs) {
+				t.Errorf("GetParticipationScoreByNodeAddress() gotArgs = %v, want %v", gotArgs, tt.wantArgs)
+			}
+		})
+	}
+}

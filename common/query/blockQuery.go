@@ -68,12 +68,14 @@ type (
 		GetGenesisBlock() string
 		GetBlockByID(id int64) string
 		GetBlockByHeight(height uint32) string
+		GetBlockSmithPublicKeyByHeightRange(fromHeight, toHeight uint32) string
 		GetBlockFromHeight(startHeight, limit uint32) string
 		GetBlockFromTimestamp(startTimestamp int64, limit uint32) string
 		InsertBlock(block *model.Block) (str string, args []interface{})
 		InsertBlocks(blocks []*model.Block) (str string, args []interface{})
 		ExtractModel(block *model.Block) []interface{}
 		BuildModel(blocks []*model.Block, rows *sql.Rows) ([]*model.Block, error)
+		BuildBlockSmithsPubKeys(blocks []*model.Block, rows *sql.Rows) ([]*model.Block, error)
 		Scan(block *model.Block, row *sql.Row) error
 	}
 
@@ -203,6 +205,12 @@ func (bq *BlockQuery) GetBlockFromHeight(startHeight, limit uint32) string {
 		strings.Join(bq.Fields, ", "), bq.getTableName(), startHeight, limit)
 }
 
+// GetBlockSmithPublicKeyByHeightRange returns query string to get a batch of blocksmiths public keys
+func (bq *BlockQuery) GetBlockSmithPublicKeyByHeightRange(fromHeight, toHeight uint32) string {
+	return fmt.Sprintf("SELECT height, blocksmith_public_key FROM %s WHERE height >= %d AND height <= %d ORDER BY height DESC",
+		bq.getTableName(), fromHeight, toHeight)
+}
+
 // GetBlockFromTimestamp returns query string to get blocks from a certain block timestamp
 func (bq *BlockQuery) GetBlockFromTimestamp(startTimestamp int64, limit uint32) string {
 	return fmt.Sprintf("SELECT %s FROM %s WHERE timestamp >= %d ORDER BY timestamp LIMIT %d",
@@ -259,6 +267,25 @@ func (*BlockQuery) BuildModel(blocks []*model.Block, rows *sql.Rows) ([]*model.B
 			&block.MerkleRoot,
 			&block.MerkleTree,
 			&block.ReferenceBlockHeight,
+		)
+		if err != nil {
+			return nil, err
+		}
+		blocks = append(blocks, &block)
+	}
+	return blocks, nil
+}
+
+func (*BlockQuery) BuildBlockSmithsPubKeys(blocks []*model.Block, rows *sql.Rows) ([]*model.Block, error) {
+	for rows.Next() {
+		var (
+			block model.Block
+			err   error
+		)
+
+		err = rows.Scan(
+			&block.Height,
+			&block.BlocksmithPublicKey,
 		)
 		if err != nil {
 			return nil, err
