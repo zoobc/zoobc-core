@@ -267,7 +267,7 @@ func (s *Peer2PeerService) SendBlockListener() observer.Listener {
 				go func(p *model.Peer) {
 					// add a max (random) 1 sec delay to avoid opening too many connections too fast
 					if err := s.PeerServiceClient.SendBlock(p, b, chainType); err != nil {
-						s.Logger.Infof("SendBlockListener: %s", err)
+						s.Logger.Errorf("SendBlockListener: %s", err)
 					}
 				}(peer)
 			}
