@@ -133,6 +133,7 @@ func (ps *PublishedReceiptService) ProcessPublishedReceipts(
 			unlinkedCount = len(validUnlinkedReceipts)
 		}
 		if len(linkedReceiptsToValidate) > 0 {
+			// TODO: reintroduce this code when fixing linked receipts logic
 			// validLinkedReceipts, err := ps.ReceiptService.ValidateLinkedReceipts(
 			// 	linkedReceiptsToValidate,
 			// 	block,
