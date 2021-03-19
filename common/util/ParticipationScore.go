@@ -65,9 +65,9 @@ func CalculateParticipationScore(linkedReceipt, unlinkedReceipt uint32, networkS
 
 	// The larger the network, the fewer blocks made by each node, so the score change per block increases
 	if receiptScore < pivot {
-		result -= (pivot - receiptScore) * networkSize * constant.IncreaseScoreUnit / halfMaxReceipt
+		result -= (pivot - receiptScore) * networkSize * constant.DecreaseScoreUnit / halfMaxReceipt
 	} else {
-		result += (receiptScore - pivot) * networkSize * constant.DecreaseScoreUnit / halfMaxReceipt
+		result += (receiptScore - pivot) * networkSize * constant.IncreaseScoreUnit / halfMaxReceipt
 	}
 
 	return result

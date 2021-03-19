@@ -71,7 +71,7 @@ func TestCalculateParticipationScore(t *testing.T) {
 				unlinkedReceipt: 0,
 				networkSize:     100,
 			},
-			want: -165343915343840,
+			want: -992063492063440,
 		},
 		{
 			name: "wantSuccess:max-plus",
@@ -80,7 +80,7 @@ func TestCalculateParticipationScore(t *testing.T) {
 				unlinkedReceipt: 5,
 				networkSize:     100,
 			},
-			want: 1488095238095160,
+			want: 248015873015760,
 		},
 		{
 			name: "wantSuccess:score-lies-on-center-value",
@@ -98,7 +98,7 @@ func TestCalculateParticipationScore(t *testing.T) {
 				unlinkedReceipt: 2,
 				networkSize:     100,
 			},
-			want: -82671957671920,
+			want: -496031746031720,
 		},
 		{
 			name: "wantSuccess:score-above-center-value",
@@ -107,7 +107,7 @@ func TestCalculateParticipationScore(t *testing.T) {
 				unlinkedReceipt: 5,
 				networkSize:     100,
 			},
-			want: 248015873015860,
+			want: 41335978835960,
 		},
 	}
 	for _, tt := range tests {

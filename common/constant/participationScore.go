@@ -77,10 +77,10 @@ const (
 	ScoreChangeUnit = MaxParticipationScore / BlocksPerPeriod
 	// CONSTANT: multiplier for when receipts are > half -- means node making blocks with FULL receipts
 	// will take 12 weeks (3 months) to go from 0 to max score
-	IncreaseScoreMod = 12
+	IncreaseScoreDivider = 12
 	// CONSTANT: multiplier for when receipts are < half -- means node making blocks, but with no receipts, will live 2 weeks from full score
-	DecreaseScoreMod  = 2
-	IncreaseScoreUnit = ScoreChangeUnit / IncreaseScoreMod
-	DecreaseScoreUnit = ScoreChangeUnit / DecreaseScoreMod
-	ReceiptScorePivot = PriorityStrategyMaxPriorityPeers - 1
+	DecreaseScoreDivider = 2
+	IncreaseScoreUnit    = ScoreChangeUnit / IncreaseScoreDivider
+	DecreaseScoreUnit    = ScoreChangeUnit / DecreaseScoreDivider
+	ReceiptScorePivot    = PriorityStrategyMaxPriorityPeers - 1
 )
