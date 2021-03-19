@@ -54,9 +54,9 @@ const (
 	// maintain the number scale like balance does.
 	ScalarReceiptScore = float32(OneZBC)
 	// LinkedReceiptScore the score for each receipt that proved have relation with previous published receipt via merkle root
-	LinkedReceiptScore float32 = 1
+	LinkedReceiptScore uint32 = 1
 	// LinkedReceiptScore the score for each receipt that can't proved have relation with previous published receipt via merkle root
-	UnlinkedReceiptScore float32 = 1
+	UnlinkedReceiptScore uint32 = 1
 	// MaxScoreChange the maximum score that node wll get.
 	// note that in small networks if this value is too high it will lead to nodes being expelled from registry quickly
 	// in production 100000000 * int64(ScalarReceiptScore). reduce to 10 * int64(ScalarReceiptScore) to test with less than 10 nodes
