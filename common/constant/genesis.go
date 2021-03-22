@@ -1187,5 +1187,16 @@ var (
 			ParticipationScore: GenesisParticipationScore,
 			Message:            "",
 		},
+		{
+			AccountAddressType: 0,
+			AccountAddress:     "ZBC_52X5ZBD7_7IX2GSXY_RDPA4M7L_N6NFA655_R4UV5I7M_3QMIVHQM_63LQVWYV",
+			AccountBalance:     0,
+			// ZNK_3KGE4YXR_FD7D4F73_4GRRBLTZ_FSNWGQXR_O2UX5OOR_GBCMSURM_FO75ZKDR
+			NodePublicKey: []byte{218, 140, 78, 98, 241, 40, 254, 62, 23, 251, 225, 163, 16, 174, 121, 44, 155, 99, 66, 241, 118, 169, 126,
+				185, 209, 48, 68, 201, 82, 44, 43, 191},
+			LockedBalance:      0,
+			ParticipationScore: GenesisParticipationScore,
+			Message:            "",
+		},
 	}
 )
