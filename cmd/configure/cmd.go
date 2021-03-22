@@ -293,6 +293,8 @@ func generateConfig(config *model.Config) error {
 	config.DatabaseFileName = "zoobc.db"
 	config.CliMonitoring = true
 	config.SnapshotPath = "./resource/snapshots"
+	config.AntiSpamFilter = true
+	config.AntiSpamCPULimitPercentage = 75
 
 	// WELL KNOWN PEERS
 	switch target {
