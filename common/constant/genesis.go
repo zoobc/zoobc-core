@@ -55,7 +55,7 @@
 package constant
 
 const (
-	MainchainGenesisBlockID int64 = 313125371883866770
+	MainchainGenesisBlockID int64 = 748334139624942752
 )
 
 type (
@@ -73,14 +73,14 @@ type (
 )
 
 var (
-	ApplicationCodeName            = "zoobc-mainnet"
+	ApplicationCodeName            = "ZBC_mainnet"
 	ApplicationVersion             = "1.1.0"
 	MainchainGenesisBlocksmithID   = []byte{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1}
 	MainchainGenesisBlockSignature = []byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}
 	MainchainGenesisTransactionSignature = []byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}
-	MainchainGenesisBlockTimestamp = int64(1604307600)
+	MainchainGenesisBlockTimestamp = int64(1617089400)
 	// MainchainGenesisAccountAddress encoded "ZBC_ODR3YPWN_FQBDD6SV_OJ3YO3PK_E5UVSXW3_5DYQ3PTL_AXSJKNQ4_UDLNXYXC"
 	// MainchainGenesisAccountAddress hex "000000007daef1f5c0405ba20f712f185984e82742af76806b5bedb654c3b8107bdbd857"
 	MainchainGenesisAccountAddress = []byte{0, 0, 0, 0, 4, 38, 67, 253, 92, 95, 59, 100, 189, 107, 56, 136, 47, 119, 39, 253, 197, 214,
