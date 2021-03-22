@@ -911,16 +911,17 @@ func (rs *ReceiptService) SelectReceipts(
 	}
 	selectedReceipts[0] = unlinkedReceipts
 
+	// TODO: restore this when fixing linked receipt logic
 	// select linked receipts
-	linkedReceipts, err = rs.SelectLinkedReceipts(
-		uint32(len(unlinkedReceipts)),
-		numberOfReceipt,
-		blockHeight,
-		blockSeed,
-	)
-	if err != nil {
-		rs.Logger.Error(err)
-	}
+	// linkedReceipts, err = rs.SelectLinkedReceipts(
+	// 	uint32(len(unlinkedReceipts)),
+	// 	numberOfReceipt,
+	// 	blockHeight,
+	// 	blockSeed,
+	// )
+	// if err != nil {
+	// 	rs.Logger.Error(err)
+	// }
 	selectedReceipts[1] = linkedReceipts
 
 	return selectedReceipts, nil
