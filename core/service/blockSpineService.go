@@ -408,7 +408,7 @@ func (bs *BlockSpineService) PushBlock(previousBlock, block *model.Block, broadc
 
 	err = bs.ProcessPushBlock(previousBlock, block, broadcast, persist)
 	if err != nil {
-		bs.Logger.Error(err.Error())
+		bs.Logger.Info(err.Error())
 		if rollbackErr := bs.QueryExecutor.RollbackTx(isDbTransactionHighPriority); rollbackErr != nil {
 			bs.Logger.Error(rollbackErr.Error())
 		}
