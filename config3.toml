@@ -15,8 +15,8 @@ maxAPIRequestPerSecond = 10
 apiReqTimeoutSec = 2
 cpuProfilingPort = 6063
 monitoringPort = 9093
-
-ownerAccountAddress = "ZBC_3WWDF4S2_IZVG2HHD_VOPSCNGN_COLYZ2OZ_M4QJZ4OL_44YHTKVC_2TPZBZAU"
+# seed: afraid garage canal drastic ill lounge vicious sniff tonight flee vital second twice describe enjoy sport absurd develop garden struggle kidney gas joke burst
+ownerAccountAddress = "ZBC_MVSCRODC_M7MPBOZJ_EGEVP7OS_5LNMXF7A_5NWKQRPV_EZ26CEKD_MWLMFXVK"
 
 proofOfOwnershipReqTimeoutSec = 1
 smithing = true
