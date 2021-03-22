@@ -163,10 +163,10 @@ func (ns *NativeStrategy) resolvePeer(destPeer *model.Peer) {
 		destPeer.ResolvingTime = time.Now().UTC().Unix()
 	}
 	if err := ns.RemoveUnresolvedPeer(destPeer); err != nil {
-		ns.Logger.Error(err.Error())
+		ns.Logger.Warn(err.Error())
 	}
 	if err := ns.AddToResolvedPeer(destPeer); err != nil {
-		ns.Logger.Error(err.Error())
+		ns.Logger.Warn(err.Error())
 	}
 }
 
@@ -416,11 +416,11 @@ func (ns *NativeStrategy) AddToUnresolvedPeers(newNodes []*model.Node, toForce b
 				// removing a peer at random if the UnresolvedPeers has reached max
 				peer := ns.GetAnyUnresolvedPeer()
 				if err := ns.RemoveUnresolvedPeer(peer); err != nil {
-					ns.Logger.Error(err.Error())
+					ns.Logger.Warn(err.Error())
 				}
 			}
 			if err := ns.AddToUnresolvedPeer(peer); err != nil {
-				ns.Logger.Error(err.Error())
+				ns.Logger.Warn(err.Error())
 			}
 			addedPeers++
 		}
@@ -537,10 +537,10 @@ func (ns *NativeStrategy) PeerUnblacklist(peer *model.Peer) *model.Peer {
 	peer.BlacklistingCause = ""
 	peer.BlacklistingTime = 0
 	if err := ns.RemoveBlacklistedPeer(peer); err != nil {
-		ns.Logger.Error(err.Error())
+		ns.Logger.Warn(err.Error())
 	}
 	if err := ns.AddToUnresolvedPeers([]*model.Node{peer.Info}, false); err != nil {
-		ns.Logger.Error(err.Error())
+		ns.Logger.Warn(err.Error())
 	}
 	return peer
 }
@@ -551,7 +551,7 @@ func (ns *NativeStrategy) DisconnectPeer(peer *model.Peer) {
 	_ = ns.RemoveResolvedPeer(peer)
 	if ns.GetExceedMaxUnresolvedPeers() <= 0 {
 		if err := ns.AddToUnresolvedPeer(peer); err != nil {
-			ns.Logger.Error(err.Error())
+			ns.Logger.Warn(err.Error())
 		}
 	}
 }

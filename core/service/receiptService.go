@@ -349,8 +349,7 @@ func (rs *ReceiptService) SelectUnlinkedReceipts(
 		if err != nil {
 			rs.Logger.Error(err)
 		}
-		// TODO: lower this to debug once tested on alpha network to not pollute logs
-		rs.Logger.Error("no priority peers for node at block height: ", lookBackHeight)
+		rs.Logger.Debug("no priority peers for node at block height: ", lookBackHeight)
 		return emptyReceipts, nil
 	}
 
