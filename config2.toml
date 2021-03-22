@@ -10,7 +10,8 @@ maxapirequestpersecond = 10
 monitoringport = 9092
 myaddress = "127.0.0.1"
 nodekeyfile = "node_keys_2.json"
-owneraccountaddress = "ZBC_EEX2EIIS_UFQI5SRU_4UGYMSXA_RDSKDNAF_P2A7M5PC_CXWCMZZX_SNPIQ2SW"
+# seed: reopen fetch spread valve gloom power tiny maze annual mind amateur bullet enforce rabbit frozen lock broken tell hello access license endless edit inch
+owneraccountaddress = "ZBC_QFVW5OWQ_3PQMBDOX_4XJXZ4PL_SH7FBFKN_LVUOVPSO_22BHUQTZ_EA2CF7LQ"
 peerport = 8002
 proofofownershipreqtimeoutsec = 1
 resourcepath = "resource"

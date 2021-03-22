@@ -58,7 +58,7 @@ func CalculateParticipationScore(linkedReceipt, unlinkedReceipt uint32, networkS
 	var (
 		result         int64
 		pivot          = int64(constant.ReceiptScorePivot / 2)
-		halfMaxReceipt = int64(constant.PriorityStrategyMaxPriorityPeers / 2)
+		halfMaxReceipt = int64(constant.MaxReceiptCount / 2)
 	)
 
 	receiptScore := int64(linkedReceipt*constant.LinkedReceiptScore + unlinkedReceipt*constant.UnlinkedReceiptScore)
