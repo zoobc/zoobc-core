@@ -306,7 +306,7 @@ func (ts *TransactionService) PostTransaction(
 	tpsReceived = ts.FeedbackStrategy.IncrementVarCount("tpsReceivedTmp").(int)
 	if limitReached, limitLevel := ts.FeedbackStrategy.IsCPULimitReached(constant.FeedbackCPUMinSamples); limitReached {
 		if limitLevel == constant.FeedbackLimitHigh || limitLevel == constant.FeedbackLimitCritical {
-			ts.Logger.Error("Tx dropped due to high cpu usage")
+			ts.Logger.Debug("Tx dropped due to high cpu usage")
 			monitoring.IncreaseTxFiltered()
 			return nil, status.Error(codes.Unavailable, "Service is currently not available")
 		}
@@ -329,12 +329,12 @@ func (ts *TransactionService) PostTransaction(
 	if limitReached, limitLevel := ts.FeedbackStrategy.IsP2PRequestLimitReached(constant.FeedbackMinSamples); limitReached {
 		switch limitLevel {
 		case constant.FeedbackLimitHigh:
-			ts.Logger.Error("Tx dropped due to node being too busy resolving P2P requests")
+			ts.Logger.Debug("Tx dropped due to node being too busy resolving P2P requests")
 			monitoring.IncreaseTxFiltered()
 			return nil, status.Error(codes.Internal, "TooManyP2PRequests")
 		case constant.FeedbackLimitMedium:
 			if tpsReceived > 2 {
-				ts.Logger.Error("Tx dropped due to node being too busy resolving P2P requests")
+				ts.Logger.Debug("Tx dropped due to node being too busy resolving P2P requests")
 				monitoring.IncreaseTxFiltered()
 				return nil, status.Error(codes.Internal, "TooManyP2PRequests")
 			}

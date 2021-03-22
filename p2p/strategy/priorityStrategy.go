@@ -212,7 +212,7 @@ func (ps *PriorityStrategy) ConnectPriorityPeersGradually() {
 					if priorityPeers[unresolvedNodeAddress] == nil {
 						err := ps.RemoveUnresolvedPeer(unresolvedPeer)
 						if err != nil {
-							ps.Logger.Error(err.Error())
+							ps.Logger.Warn(err.Error())
 							continue
 						}
 						delete(unresolvedPeers, unresolvedNodeAddress)
@@ -224,7 +224,7 @@ func (ps *PriorityStrategy) ConnectPriorityPeersGradually() {
 			// add the priority peers to unresolvedPeers
 			err = ps.AddToUnresolvedPeer(&newPeer)
 			if err != nil {
-				ps.Logger.Error(err)
+				ps.Logger.Warn(err)
 			}
 			unresolvedPeers[priorityNodeAddress] = &newPeer
 			exceedMaxUnresolvedPeers++
@@ -395,7 +395,7 @@ func (ps *PriorityStrategy) ValidateRequest(ctx context.Context) bool {
 
 					if ps.GetTotalUnresolvedPeers() < constant.MaxUnresolvedPeers {
 						if err = ps.AddToUnresolvedPeer(&model.Peer{Info: nodeRequester}); err != nil {
-							ps.Logger.Error(err.Error())
+							ps.Logger.Warn(err.Error())
 						} else {
 							isAddedToUnresolved = true
 						}
@@ -407,7 +407,7 @@ func (ps *PriorityStrategy) ValidateRequest(ctx context.Context) bool {
 						if peer != nil {
 							if err = ps.RemoveUnresolvedPeer(peer); err == nil {
 								if err = ps.AddToUnresolvedPeer(&model.Peer{Info: nodeRequester}); err != nil {
-									ps.Logger.Error(err.Error())
+									ps.Logger.Warn(err.Error())
 								}
 								isAddedToUnresolved = true
 							}
@@ -645,11 +645,11 @@ func (ps *PriorityStrategy) resolvePeer(destPeer *model.Peer, wantToKeep bool) {
 		destPeer.Info.CodeName = peerInfoResult.GetHostInfo().GetCodeName()
 	}
 	if err := ps.RemoveUnresolvedPeer(destPeer); err != nil {
-		ps.Logger.Error(err.Error())
+		ps.Logger.Warn(err.Error())
 	}
 
 	if err := ps.AddToResolvedPeer(destPeer); err != nil {
-		ps.Logger.Error(err.Error())
+		ps.Logger.Warn(err.Error())
 	}
 }
 
@@ -692,7 +692,7 @@ func (ps *PriorityStrategy) resolvePendingAddresses() {
 					// remove unresolved/resolved peers with this node address, if there are any
 					if err := ps.RemoveUnresolvedPeer(destPeer); err != nil {
 						if err := ps.RemoveResolvedPeer(destPeer); err != nil {
-							ps.Logger.Error(err)
+							ps.Logger.Warn(err)
 						}
 					}
 					return
@@ -825,10 +825,10 @@ func (ps *PriorityStrategy) UpdateNodeAddressThread() {
 				host.GetInfo().GetPort(),
 				false,
 			); err != nil {
-				ps.Logger.Error(err)
+				ps.Logger.Warn(err)
 			}
 		} else {
-			ps.Logger.Error("Cannot get node address from external source")
+			ps.Logger.Warn("Cannot get node address from external source")
 		}
 		select {
 		case <-ticker.C:
@@ -1207,7 +1207,7 @@ func (ps *PriorityStrategy) AddToUnresolvedPeers(newNodes []*model.Node, toForce
 			ps.GetResolvedPeerByAddressPort(p2pUtil.GetFullAddressPeer(peer)) == nil &&
 			hostAddressPort != p2pUtil.GetFullAddressPeer(peer) {
 			if err := ps.AddToUnresolvedPeer(peer); err != nil {
-				ps.Logger.Error(err.Error())
+				ps.Logger.Warn(err.Error())
 			}
 			peersAdded++
 		}
@@ -1354,7 +1354,7 @@ func (ps *PriorityStrategy) PeerUnblacklist(peer *model.Peer) *model.Peer {
 	peer.BlacklistingCause = ""
 	peer.BlacklistingTime = 0
 	if err := ps.RemoveBlacklistedPeer(peer); err != nil {
-		ps.Logger.Error(err.Error())
+		ps.Logger.Warn(err.Error())
 	}
 	if err := ps.AddToUnresolvedPeers([]*model.Node{peer.Info}, false); err != nil {
 		ps.Logger.Warn(err.Error())
@@ -1367,12 +1367,12 @@ func (ps *PriorityStrategy) PeerUnblacklist(peer *model.Peer) *model.Peer {
 // if the unresolved peer is full (maybe) it should not go to the unresolved peer
 func (ps *PriorityStrategy) DisconnectPeer(peer *model.Peer) {
 	if err := ps.RemoveResolvedPeer(peer); err != nil {
-		ps.Logger.Error(err.Error())
+		ps.Logger.Warn(err.Error())
 	}
 
 	if ps.GetExceedMaxUnresolvedPeers() <= 0 {
 		if err := ps.AddToUnresolvedPeer(peer); err != nil {
-			ps.Logger.Error(err.Error())
+			ps.Logger.Warn(err.Error())
 		}
 	}
 }
@@ -1475,7 +1475,7 @@ func (ps *PriorityStrategy) SyncNodeAddressInfoTable(nodeRegistrations []*model.
 		i++
 	}
 	if err := ps.ReceiveNodeAddressInfo(nodeAddressesInfoArr); err != nil {
-		ps.Logger.Error(err)
+		ps.Logger.Warn(err)
 	}
 	return nodeAddressesInfo, nil
 }
