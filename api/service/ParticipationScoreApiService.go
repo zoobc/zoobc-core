@@ -89,8 +89,12 @@ func (pss *ParticipationScoreService) GetParticipationScores(
 }
 
 // GetParticipationScores fetches participation scores for given height range
+// Note: if we pass NodeAddress, it must be formatted as address:port
 func (pss *ParticipationScoreService) GetLatestParticipationScoreByNodeID(
 	params *model.GetLatestParticipationScoreByNodeIDRequest,
 ) (*model.ParticipationScore, error) {
+	if params.NodeAddress != "" {
+		return pss.ParticipationScoreService.GetLatestParticipationScoreByNodeAddress(params.NodeAddress)
+	}
 	return pss.ParticipationScoreService.GetLatestParticipationScoreByNodeID(params.NodeID)
 }

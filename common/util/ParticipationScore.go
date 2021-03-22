@@ -54,24 +54,21 @@ import (
 )
 
 // CalculateParticipationScore to calculate score change of node
-func CalculateParticipationScore(linkedReceipt, unlinkedReceipt uint32) int64 {
+func CalculateParticipationScore(linkedReceipt, unlinkedReceipt uint32, networkSize int64) int64 {
 	var (
-		result            int64
-		normalizationUnit int64 = 1000 // to normalize floating result to make the calculation easier
+		result         int64
+		pivot          = int64(constant.ReceiptScorePivot / 2)
+		halfMaxReceipt = int64(constant.MaxReceiptCount / 2)
 	)
-	receiptCount := (float32(linkedReceipt) * constant.LinkedReceiptScore) + (float32(unlinkedReceipt) * constant.UnlinkedReceiptScore)
-	centerValue := float32(constant.MaxReceiptCount / 2)
 
-	// this is to make nodes' score falls faster and gain slower
-	if receiptCount > centerValue {
-		result = int64((receiptCount - centerValue) * float32(normalizationUnit))
-		result *= constant.IncreaseScoreMod / (normalizationUnit)
+	receiptScore := int64(linkedReceipt*constant.LinkedReceiptScore + unlinkedReceipt*constant.UnlinkedReceiptScore)
 
-		return result
+	// The larger the network, the fewer blocks made by each node, so the score change per block increases
+	if receiptScore < pivot {
+		result -= (pivot - receiptScore) * networkSize * constant.DecreaseScoreUnit / halfMaxReceipt
+	} else {
+		result += (receiptScore - pivot) * networkSize * constant.IncreaseScoreUnit / halfMaxReceipt
 	}
-
-	result = int64((centerValue - receiptCount) * float32(normalizationUnit))
-	result *= constant.DecreaseScoreMod / (normalizationUnit)
 
 	return result
 }

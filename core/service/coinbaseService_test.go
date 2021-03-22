@@ -53,10 +53,11 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"github.com/zoobc/zoobc-core/common/crypto"
 	"reflect"
 	"regexp"
 	"testing"
+
+	"github.com/zoobc/zoobc-core/common/crypto"
 
 	"github.com/DATA-DOG/go-sqlmock"
 
@@ -229,7 +230,7 @@ func TestCoinbaseService_GetCoinbase(t *testing.T) {
 				blockTimestamp:         (&chaintype.MainChain{}).GetGenesisBlockTimestamp() + 15,
 				previousBlockTimestamp: (&chaintype.MainChain{}).GetGenesisBlockTimestamp(),
 			},
-			want: 86041924,
+			want: 315487071,
 		},
 	}
 	for _, tt := range tests {

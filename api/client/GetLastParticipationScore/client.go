@@ -47,52 +47,52 @@
 //
 // IMPORTANT: The above copyright notice and this permission notice
 // shall be included in all copies or substantial portions of the Software.
-package constant
+package main
 
 import (
-	"time"
+	"context"
+	"encoding/json"
+	"flag"
+	"fmt"
+
+	log "github.com/sirupsen/logrus"
+	rpcModel "github.com/zoobc/zoobc-core/common/model"
+	rpcService "github.com/zoobc/zoobc-core/common/service"
+	"github.com/zoobc/zoobc-core/common/util"
+	"google.golang.org/grpc"
 )
 
-var (
-	CoinbaseTotalDistribution        int64   = 33000000 * OneZBC // 33 million * 10^8 in production
-	CoinbaseTime                     int64   = 15 * OneYear      // 15 years in production
-	CoinbaseSigmoidStart             float64 = 3
-	CoinbaseSigmoidEnd               float64 = 6
-	CoinbaseNumberRewardsPerSecond   int64   = 1 // probably this will always be 1
-	CoinbaseMaxNumberRewardsPerBlock int64   = 600
+func main() {
+	var ip string
+	flag.StringVar(&ip, "ip", "", "Usage")
+	flag.Parse()
+	if len(ip) < 1 {
+		config, err := util.LoadConfig("../../../", "config", "toml", "")
+		if err != nil {
+			log.Fatal(err)
+		} else {
+			ip = fmt.Sprintf(":%d", config.RPCAPIPort)
+		}
+	}
+	conn, err := grpc.Dial(ip, grpc.WithInsecure())
+	if err != nil {
+		log.Fatalf("did not connect: %s", err)
+	}
+	defer conn.Close()
 
-	GenerateBlockTimeoutSec     = int64(15)
-	CumulativeDifficultyDivisor = int64(1000000)
-	// BlockPoolScanPeriod define the periodic time to scan the whole block pool for legal block to persist to the chain
-	BlockPoolScanPeriod = 5 * time.Second
-	// TimeOutBlockWaitingTransactions is the timeout of block while waiting transactions
-	TimeOutBlockWaitingTransactions = int64(2 * 60) // 2 minute
-	// CheckTimedOutBlock to use in scheduler to check timedout block while waiting transaction
-	CheckTimedOutBlock        = 30 * time.Second
-	SpineChainSmithIdlePeriod = 500 * time.Millisecond
-	// SpineChainSmithingPeriod intervals between spine blocks in seconds
-	// reduce to 24 hours
-	SpineChainSmithingPeriod = 24 * OneHour
-	MainChainSmithIdlePeriod = 5 * time.Second
-	// MainChainSmithingPeriod one main block every 15 seconds + block pool delay (max +30 seconds)
-	MainChainSmithingPeriod = int64(15)
-	// EmptyBlockSkippedBlocksmithLimit state the number of allowed skipped blocksmith until only empty block can be generated
-	// 0 will set node to always create empty block
-	EmptyBlockSkippedBlocksmithLimit = int64(10) // 10 in production
-	/*
-		Mainchain smithing
-	*/
+	c := rpcService.NewParticipationScoreServiceClient(conn)
 
-	MainSmithingBlockCreationTime = int64(30)
-	MainSmithingNetworkTolerance  = int64(15)
-	MainSmithingBlocksmithTimeGap = int64(10)
+	response, err := c.GetLatestParticipationScoreByNodeID(context.Background(), &rpcModel.GetLatestParticipationScoreByNodeIDRequest{
+		NodeID:      3037184415664033759,
+		NodeAddress: "127.0.0.1:8001",
+	})
 
-	/*
-		Spinechain smithing
-	*/
+	if err != nil {
+		log.Fatalf("error calling rpc_service.GetParticipationScores: %s", err)
+	}
 
-	SpineSmithingBlockCreationTime  = int64(300)
-	SpineSmithingNetworkTolerance   = int64(150)
-	SpineSmithingBlocksmithTimeGap  = int64(100)
-	SpineReferenceBlockHeightOffset = uint32(5)
-)
+	j, _ := json.MarshalIndent(response, "", "  ")
+
+	log.Printf("response from remote rpc_service.GetParticipationScores(): %s", j)
+
+}

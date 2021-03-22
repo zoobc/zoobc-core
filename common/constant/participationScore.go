@@ -54,9 +54,9 @@ const (
 	// maintain the number scale like balance does.
 	ScalarReceiptScore = float32(OneZBC)
 	// LinkedReceiptScore the score for each receipt that proved have relation with previous published receipt via merkle root
-	LinkedReceiptScore float32 = 1.5
+	LinkedReceiptScore uint32 = 1
 	// LinkedReceiptScore the score for each receipt that can't proved have relation with previous published receipt via merkle root
-	UnlinkedReceiptScore float32 = 0.5
+	UnlinkedReceiptScore uint32 = 1
 	// MaxScoreChange the maximum score that node wll get.
 	// note that in small networks if this value is too high it will lead to nodes being expelled from registry quickly
 	// in production 100000000 * int64(ScalarReceiptScore). reduce to 10 * int64(ScalarReceiptScore) to test with less than 10 nodes
@@ -71,8 +71,17 @@ const (
 	DefaultParticipationScore int64 = MaxParticipationScore / 5
 	// Starting score for pre seed nodes (registered at genesis)
 	GenesisParticipationScore int64 = MaxParticipationScore
-	// TODO: double check if this number is calculated correctrly
-	IncreaseScoreMod int64 = MaxScoreChange / 10
-	// TODO: double check if this number is calculated correctrly
-	DecreaseScoreMod int64 = -(MaxScoreChange / 5)
+
+	// CONSTANT. 1 week worth of blocks
+	BlocksPerPeriod = 1440 * 4 * 7
+	// CONSTANT. Base score modifier (if the network has only 1 node making all the blocks)
+	ScoreChangeUnit = MaxParticipationScore / BlocksPerPeriod
+	// CONSTANT: multiplier for when receipts are > half -- means node making blocks with FULL receipts
+	// will take 12 weeks (3 months) to go from 0 to max score
+	IncreaseScoreDivider = 12
+	// CONSTANT: multiplier for when receipts are < half -- means node making blocks, but with no receipts, will live 2 weeks from full score
+	DecreaseScoreDivider = 2
+	IncreaseScoreUnit    = ScoreChangeUnit / IncreaseScoreDivider
+	DecreaseScoreUnit    = ScoreChangeUnit / DecreaseScoreDivider
+	ReceiptScorePivot    = PriorityStrategyMaxPriorityPeers - 1
 )
