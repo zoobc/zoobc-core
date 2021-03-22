@@ -13,7 +13,8 @@ maxapirequestpersecond = 10
 monitoringport = 9090
 myaddress = "127.0.0.1"
 nodekeyfile = "node_keys.json"
-owneraccountaddress = "ZBC_F5YUYDXD_WFDJSAV5_K3Y72RCM_GLQP32XI_QDVXOGGD_J7CGSSSK_5VKR7YML"
+# seed: glimpse carry snake fox cement enroll picture rubber dice call bunker make hotel give bamboo blind hockey circle clap resource silly obey reveal trick
+owneraccountaddress = "ZBC_FFK7CVJE_QR7MZI2O_YMYKQ7NA_HRLYAOZU_TY7TXNEH_KZRUPKMF_MO36RWQ5"
 peerport = 8001
 proofofownershipreqtimeoutsec = 2
 resourcepath = "/Users/ali/go/src/github.com/zoobc/zoobc-core/resource"

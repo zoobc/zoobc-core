@@ -548,12 +548,12 @@ func TestBatchReceiptQuery_GetReceiptsByRecipientAndDatumHash(t *testing.T) {
 				Fields:    tt.fields.Fields,
 				TableName: tt.fields.TableName,
 			}
-			gotStr, gotArgs := rq.GetReceiptsByRecipientAndDatumHash(tt.args.datumHash, tt.args.datumType, tt.args.recipientPubKey)
+			gotStr, gotArgs := rq.GetReceiptByRecipientAndDatumHash(tt.args.datumHash, tt.args.datumType, tt.args.recipientPubKey)
 			if gotStr != tt.wantStr {
-				t.Errorf("GetReceiptsByRecipientAndDatumHash() gotStr = %v, want %v", gotStr, tt.wantStr)
+				t.Errorf("GetReceiptByRecipientAndDatumHash() gotStr = %v, want %v", gotStr, tt.wantStr)
 			}
 			if !reflect.DeepEqual(gotArgs, tt.wantArgs) {
-				t.Errorf("GetReceiptsByRecipientAndDatumHash() gotArgs = %v, want %v", gotArgs, tt.wantArgs)
+				t.Errorf("GetReceiptByRecipientAndDatumHash() gotArgs = %v, want %v", gotArgs, tt.wantArgs)
 			}
 		})
 	}

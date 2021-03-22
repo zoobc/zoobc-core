@@ -51,14 +51,13 @@ package util
 
 import (
 	"testing"
-
-	"github.com/zoobc/zoobc-core/common/constant"
 )
 
 func TestCalculateParticipationScore(t *testing.T) {
 	type args struct {
 		linkedReceipt   uint32
 		unlinkedReceipt uint32
+		networkSize     int64
 	}
 	tests := []struct {
 		name string
@@ -70,32 +69,45 @@ func TestCalculateParticipationScore(t *testing.T) {
 			args: args{
 				linkedReceipt:   0,
 				unlinkedReceipt: 0,
+				networkSize:     100,
 			},
-			want: -1 * constant.MaxScoreChange,
+			want: -1240079365079300,
 		},
 		{
 			name: "wantSuccess:max-plus",
 			args: args{
-				linkedReceipt:   5,
+				linkedReceipt:   0,
 				unlinkedReceipt: 5,
+				networkSize:     100,
 			},
-			want: constant.MaxScoreChange / 2,
+			want: 310019841269700,
 		},
 		{
-			name: "wantSuccess:score-exceeds-center-value",
+			name: "wantSuccess:score-lies-on-center-value",
 			args: args{
-				linkedReceipt:   4,
-				unlinkedReceipt: 0,
+				linkedReceipt:   0,
+				unlinkedReceipt: 2,
+				networkSize:     100,
 			},
-			want: constant.IncreaseScoreMod,
+			want: 0,
 		},
 		{
 			name: "wantSuccess:score-below-center-value",
 			args: args{
 				linkedReceipt:   0,
-				unlinkedReceipt: 2,
+				unlinkedReceipt: 1,
+				networkSize:     100,
 			},
-			want: 4 * constant.DecreaseScoreMod,
+			want: -620039682539650,
+		},
+		{
+			name: "wantSuccess:score-above-center-value",
+			args: args{
+				linkedReceipt:   0,
+				unlinkedReceipt: 5,
+				networkSize:     100,
+			},
+			want: 310019841269700,
 		},
 	}
 	for _, tt := range tests {
@@ -103,6 +115,7 @@ func TestCalculateParticipationScore(t *testing.T) {
 			got := CalculateParticipationScore(
 				tt.args.linkedReceipt,
 				tt.args.unlinkedReceipt,
+				tt.args.networkSize,
 			)
 			if got != tt.want {
 				t.Errorf("CalculateParticipationScore() = %v, want %v", got, tt.want)

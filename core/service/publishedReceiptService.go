@@ -51,6 +51,7 @@ package service
 
 import (
 	"errors"
+
 	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
@@ -132,15 +133,16 @@ func (ps *PublishedReceiptService) ProcessPublishedReceipts(
 			unlinkedCount = len(validUnlinkedReceipts)
 		}
 		if len(linkedReceiptsToValidate) > 0 {
-			validLinkedReceipts, err := ps.ReceiptService.ValidateLinkedReceipts(
-				linkedReceiptsToValidate,
-				block,
-				int32(numberOfEstimatedReceipts),
-			)
-			if err != nil {
-				return 0, 0, err
-			}
-			linkedCount = len(validLinkedReceipts)
+			// TODO: reintroduce this code when fixing linked receipts logic
+			// validLinkedReceipts, err := ps.ReceiptService.ValidateLinkedReceipts(
+			// 	linkedReceiptsToValidate,
+			// 	block,
+			// 	int32(numberOfEstimatedReceipts),
+			// )
+			// if err != nil {
+			// 	return 0, 0, err
+			// }
+			linkedCount = len(linkedReceiptsToValidate)
 		}
 	}
 

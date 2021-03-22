@@ -68,6 +68,7 @@ type (
 			blockHeight uint32,
 		) [][]interface{}
 		GetParticipationScoreByNodeID(id int64) (str string, args []interface{})
+		GetParticipationScoreByNodeAddress(nodeAddress string, port uint32) (str string, args []interface{})
 		GetParticipationScoreByNodePublicKey(nodePublicKey []byte) (str string, args []interface{})
 		GetParticipationScoresByBlockHeightRange(
 			fromBlockHeight, toBlockHeight uint32) (str string, args []interface{})
@@ -224,6 +225,28 @@ func (ps *ParticipationScoreQuery) GetParticipationScoreByNodePublicKey(nodePubl
 		strings.Join(psTableFields, ", "),
 		uint32(model.NodeRegistrationState_NodeRegistered),
 	), []interface{}{nodePublicKey}
+}
+
+// GetParticipationScoreByNodeAddress joins node_address_info to get the latest ps of a given node from its ip address
+func (ps *ParticipationScoreQuery) GetParticipationScoreByNodeAddress(nodeAddress string, port uint32) (str string, args []interface{}) {
+	psTable := ps.getTableName()
+	psTableAlias := "A"
+	naiTable := NewNodeAddressInfoQuery().getTableName()
+	naiTableAlias := "B"
+	psTableFields := make([]string, 0)
+	for _, field := range ps.Fields {
+		psTableFields = append(psTableFields, psTableAlias+"."+field)
+	}
+
+	return fmt.Sprintf("SELECT %s FROM "+psTable+" as "+psTableAlias+" "+
+		"INNER JOIN "+naiTable+" as "+naiTableAlias+" ON "+psTableAlias+".node_id = "+naiTableAlias+".node_id "+
+		"WHERE "+naiTableAlias+".address=? "+
+		"AND "+naiTableAlias+".port=? "+
+		"AND "+psTableAlias+".latest=1 "+
+		"ORDER BY "+naiTableAlias+".block_height DESC "+
+		"LIMIT 1",
+		strings.Join(psTableFields, ", "),
+	), []interface{}{nodeAddress, port}
 }
 
 func (ps *ParticipationScoreQuery) GetParticipationScoresByBlockHeightRange(

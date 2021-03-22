@@ -93,7 +93,7 @@ func TestAllMerkle(t *testing.T) {
 				t.Error("calculated root differ from generated root")
 			}
 			flatenIntermediateHash := merkle.FlattenIntermediateHashes(normalizedIntermediateHashes)
-			recoveredIntermediateHash := merkle.RestoreIntermediateHashes(flatenIntermediateHash)
+			recoveredIntermediateHash, _ := merkle.RestoreIntermediateHashes(flatenIntermediateHash)
 			if !reflect.DeepEqual(recoveredIntermediateHash, normalizedIntermediateHashes) {
 				t.Error("merkle tree from flatten bytes does not build the same tree")
 			}
