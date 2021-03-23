@@ -76,9 +76,9 @@ func NewPeerStrategyHelper() *PeerStrategyHelper {
 func (ps *PeerStrategyHelper) GetRandomPeerWithoutRepetition(peers map[string]*model.Peer, mutex *sync.Mutex) *model.Peer {
 	var (
 		peer *model.Peer
+		idx  uint64
 	)
-	randomIdx := int(util.GetSecurePositiveRandom()) % len(peers)
-	idx := 0
+	randomIdx := uint64(util.GetSecurePositiveRandom()) % uint64(len(peers))
 	for _, knownPeer := range peers {
 		if idx == randomIdx {
 			peer = knownPeer
