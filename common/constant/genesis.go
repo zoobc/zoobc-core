@@ -55,7 +55,7 @@
 package constant
 
 const (
-	MainchainGenesisBlockID int64 = -2172834626010889931
+	MainchainGenesisBlockID int64 = -1404627219985339184
 )
 
 type (
@@ -1196,7 +1196,7 @@ var (
 				185, 209, 48, 68, 201, 82, 44, 43, 191},
 			LockedBalance:      0,
 			ParticipationScore: GenesisParticipationScore,
-			Message:            "",
+			Message:            "raspi",
 		},
 	}
 )
