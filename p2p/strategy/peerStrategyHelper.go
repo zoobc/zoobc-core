@@ -77,10 +77,10 @@ func (ps *PeerStrategyHelper) GetRandomPeerWithoutRepetition(peers map[string]*m
 	var (
 		peer *model.Peer
 	)
-	randomIdx := int(util.GetSecurePositiveRandom()) % len(peers)
+	randomIdx := uint64(util.GetSecurePositiveRandom()) % uint64(len(peers))
 	idx := 0
 	for _, knownPeer := range peers {
-		if idx == randomIdx {
+		if uint64(idx) == randomIdx {
 			peer = knownPeer
 			break
 		}
