@@ -55,7 +55,7 @@
 package constant
 
 const (
-	MainchainGenesisBlockID int64 = 5121352617009083003
+	MainchainGenesisBlockID int64 = 7406176158229068706
 )
 
 type (
@@ -79,7 +79,7 @@ var (
 		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}
 	MainchainGenesisTransactionSignature = []byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}
-	MainchainGenesisBlockTimestamp = int64(1608541200)
+	MainchainGenesisBlockTimestamp = int64(1617089400)
 	// MainchainGenesisAccountAddress encoded "ZBC_ODR3YPWN_FQBDD6SV_OJ3YO3PK_E5UVSXW3_5DYQ3PTL_AXSJKNQ4_UDLNXYXC"
 	// MainchainGenesisAccountAddress hex "000000007daef1f5c0405ba20f712f185984e82742af76806b5bedb654c3b8107bdbd857"
 	MainchainGenesisAccountAddress = []byte{0, 0, 0, 0, 4, 38, 67, 253, 92, 95, 59, 100, 189, 107, 56, 136, 47, 119, 39, 253, 197, 214,
@@ -100,7 +100,7 @@ var (
 		},
 		{
 			AccountAddressType: 0,
-			AccountAddress:     "ZBC_ZRIRTSB5_UEZIIX5D_MGJPLIQ5_JD42HSQD_UUMPGHP7_EENZMNL7_JFM5T4FG",
+			AccountAddress:     "ZBC_3OTCJ2IQ_ARWWBCBI_27WCSX56_KIV6T33Y_LCJI2BUJ_O6L3KTVE_PP5GWX65",
 			AccountBalance:     0,
 			// ZNK_LZNI3PNP_DXTMMXKI_BUXG7Y5W_UPNOKK3A_MEE7AAET_BPD6UCXF_EIILZPT7
 			NodePublicKey: []byte{94, 90, 141, 189, 175, 29, 230, 198, 93, 72, 13, 46, 111, 227, 182, 163, 218, 229, 43,
@@ -111,11 +111,22 @@ var (
 		},
 		{
 			AccountAddressType: 0,
+			AccountAddress:     "ZBC_ZRIRTSB5_UEZIIX5D_MGJPLIQ5_JD42HSQD_UUMPGHP7_EENZMNL7_JFM5T4FG",
+			AccountBalance:     0,
+			// ZNK_4D6AWMPQ_BXHKXEIM_ONWYJ7IG_AMWGQWJ6_OYVCNVTZ_7MELMNJH_BUQQVEAD
+			NodePublicKey: []byte{224, 252, 11, 49, 240, 13, 206, 171, 145, 12, 115, 109, 132, 253, 6, 3, 44, 104, 89,
+				62, 118, 42, 38, 214, 121, 251, 8, 182, 53, 39, 13, 33},
+			LockedBalance:      0,
+			ParticipationScore: GenesisParticipationScore,
+			Message:            "",
+		},
+		{
+			AccountAddressType: 0,
 			AccountAddress:     "ZBC_ALWP5W4Y_PGFDLGSH_VQVGAAKW_242QXE3D_V5GZFXUC_F4JWCPCU_CVGZWD4D",
 			AccountBalance:     0,
-			// ZNK_PJ4Q5JGG_RYOGBYL3_IP56LLOM_HH7RWJOY_NFM4IEVT_6TPCHAXQ_KBVXHYAZ
-			NodePublicKey: []byte{122, 121, 14, 164, 198, 142, 28, 96, 225, 123, 67, 251, 229, 173, 204, 57, 255, 27, 37,
-				216, 105, 89, 196, 18, 179, 244, 222, 35, 130, 240, 80, 107},
+			// ZNK_4LWNDWCG_CISLLATR_ZT3USFXV_BDJACL64_BJJDGJCW_GCZTV464_4HLD2X3K
+			NodePublicKey: []byte{226, 236, 209, 216, 70, 18, 36, 181, 130, 113, 204, 247, 73, 22, 245, 8, 210, 1, 47,
+				220, 10, 82, 51, 36, 86, 48, 179, 58, 243, 220, 225, 214},
 			LockedBalance:      0,
 			ParticipationScore: GenesisParticipationScore,
 			Message:            "",
@@ -124,9 +135,9 @@ var (
 			AccountAddressType: 0,
 			AccountAddress:     "ZBC_NVOAYXPP_LMRSTJH5_RJEINE4R_YAHSMIHM_KOC2IXXL_NK26KGHI_4ZKQYY5I",
 			AccountBalance:     0,
-			// ZNK_VB5NHSD2_2UGPBHOV_NQH7NXDA_2IKQ72NO_GDJVULVS_2X6S5WO5_IZODOQZO
-			NodePublicKey: []byte{168, 122, 211, 200, 122, 213, 12, 240, 157, 213, 108, 15, 246, 220, 96, 210, 21, 15, 233,
-				174, 48, 211, 90, 46, 178, 213, 253, 46, 217, 221, 70, 92},
+			// ZNK_O35Y4H5U_MUA7EMNK_3BWQBTVW_QLBBFSIN_7PBRRKJE_5GBDMSR4_UPLPEP3I
+			NodePublicKey: []byte{118, 251, 142, 31, 180, 101, 1, 242, 49, 170, 216, 109, 0, 206, 182, 130, 194, 18, 201,
+				13, 251, 195, 24, 169, 36, 233, 130, 54, 74, 60, 163, 214},
 			LockedBalance:      0,
 			ParticipationScore: GenesisParticipationScore,
 			Message:            "",
@@ -135,9 +146,9 @@ var (
 			AccountAddressType: 0,
 			AccountAddress:     "ZBC_QOCGEWEM_I5JK44X2_PO45QWM6_I77JFCBJ_KNZRIWNZ_IBKDVOB3_XRA52RHW",
 			AccountBalance:     0,
-			// ZNK_WT7YVERH_UFCHCVZI_WAXTK45B_YTPTSUHV_VMT5KM7H_CCISIWG2_AOQ7ZMOE
-			NodePublicKey: []byte{180, 255, 138, 146, 39, 161, 68, 113, 87, 40, 176, 47, 53, 115, 161, 196, 223, 57, 80,
-				245, 171, 39, 213, 51, 231, 16, 145, 36, 88, 218, 3, 161},
+			// ZNK_2LUFQFOH_L7QRYZQS_ETVE3GIJ_JTZFMX2M_OUVH6OXF_PGC2FTWZ_7EFP5J57
+			NodePublicKey: []byte{210, 232, 88, 21, 199, 95, 225, 28, 102, 18, 36, 234, 77, 153, 9, 76, 242, 86, 95,
+				76, 117, 42, 127, 58, 229, 121, 133, 162, 206, 217, 249, 10},
 			LockedBalance:      0,
 			ParticipationScore: GenesisParticipationScore,
 			Message:            "",
@@ -146,9 +157,9 @@ var (
 			AccountAddressType: 0,
 			AccountAddress:     "ZBC_NSINFX3I_CDIEXUIL_DF6RMAPZ_MD7OFSZI_MHEV2M4Y_5ZFDXGIT_W45KHHVK",
 			AccountBalance:     0,
-			// ZNK_RXRC2ZAR_QEF7YEB4_MOVDTWBS_FC5KTI5D_BFGOSYAN_WB2SY2FQ_NPRIXVQS
-			NodePublicKey: []byte{141, 226, 45, 100, 17, 129, 11, 252, 16, 60, 99, 170, 57, 216, 50, 40, 186, 169, 163,
-				163, 9, 76, 233, 96, 13, 176, 117, 44, 104, 176, 107, 226},
+			// ZNK_JEWHKP7G_CMCOO46K_PQ4PFPSR_PDKRV654_FXC4SNZN_XJ5TF5WD_A6P626OE
+			NodePublicKey: []byte{73, 44, 117, 63, 230, 19, 4, 231, 115, 202, 124, 56, 242, 190, 81, 120, 213, 26, 251,
+				188, 45, 197, 201, 55, 45, 186, 123, 50, 246, 195, 7, 159},
 			LockedBalance:      0,
 			ParticipationScore: GenesisParticipationScore,
 			Message:            "",
@@ -157,9 +168,9 @@ var (
 			AccountAddressType: 0,
 			AccountAddress:     "ZBC_HVSRFSNF_5LCELNPX_53AJEGZD_QOU2TGMB_SFTV65AV_IC2G3QJA_OPDHDPME",
 			AccountBalance:     0,
-			// ZNK_ECTFNWT2_T562PNA6_DCJP3ESB_7RZO2KRW_ULSNVHRL_EQTGCOB4_LKS6X5ON
-			NodePublicKey: []byte{32, 166, 86, 218, 122, 159, 125, 167, 180, 30, 24, 146, 253, 146, 65, 252, 114, 237, 42,
-				54, 162, 228, 218, 158, 43, 36, 38, 97, 56, 60, 90, 165},
+			// ZNK_DUKNROG4_ZBG2S3NF_WULMSCFN_22PRAKNX_U7IXUGAU_HARDOJBS_743XHIPL
+			NodePublicKey: []byte{29, 20, 216, 184, 220, 200, 77, 169, 109, 165, 181, 22, 201, 8, 173, 214, 159, 16, 41,
+				183, 167, 209, 122, 24, 20, 56, 34, 55, 36, 50, 255, 55},
 			LockedBalance:      0,
 			ParticipationScore: GenesisParticipationScore,
 			Message:            "",
@@ -168,9 +179,9 @@ var (
 			AccountAddressType: 0,
 			AccountAddress:     "ZBC_XFN5GCUF_XS3BOKYF_2RSAVAZI_IYUNWZFQ_3PNIWPDR_NQ3L7PFQ_YSLNLSGH",
 			AccountBalance:     0,
-			// ZNK_J3WTMU7T_4OLPWPY7_R4JWG75B_F6MR5TGF_QMZLZBAM_HREGDI5Z_WJIBBZEY
-			NodePublicKey: []byte{78, 237, 54, 83, 243, 227, 150, 251, 63, 31, 143, 19, 99, 127, 161, 47, 153, 30, 204,
-				197, 131, 50, 188, 132, 12, 60, 72, 97, 163, 185, 178, 80},
+			// ZNK_FJ7ITBI2_WUWF6IEQ_ITNH7BVM_IF4BS54U_WPCNXATF_FEHJJOSB_7NQSOVVX
+			NodePublicKey: []byte{42, 126, 137, 133, 26, 181, 44, 95, 32, 144, 68, 218, 127, 134, 172, 65, 120, 25, 119,
+				148, 179, 196, 219, 130, 101, 41, 14, 148, 186, 65, 251, 97},
 			LockedBalance:      0,
 			ParticipationScore: GenesisParticipationScore,
 			Message:            "",
@@ -179,9 +190,9 @@ var (
 			AccountAddressType: 0,
 			AccountAddress:     "ZBC_NJSBTTYE_Y2AXFFCU_W33EYXQP_GAKD5MFP_DZJUGIRI_RPPFGLWX_ARZKWEDY",
 			AccountBalance:     0,
-			// ZNK_XWNKYUCT_GKOJ5QLM_FMI6S6NW_DRTST464_VWVSE54C_RLS35JDD_LSQQIHOH
-			NodePublicKey: []byte{189, 154, 172, 80, 83, 50, 156, 158, 193, 108, 43, 17, 233, 121, 182, 28, 103, 41, 243,
-				220, 173, 171, 34, 119, 130, 138, 229, 190, 164, 99, 92, 161},
+			// ZNK_FSEHYCNB_6RFIQ6OC_N35GZNZ4_SDHWWYNU_2RLTPYPC_3NCAWBDA_KVE6RIKQ
+			NodePublicKey: []byte{44, 136, 124, 9, 161, 244, 74, 136, 121, 194, 110, 250, 108, 183, 60, 144, 207, 107, 97,
+				180, 212, 87, 55, 225, 226, 219, 68, 11, 4, 96, 85, 73},
 			LockedBalance:      0,
 			ParticipationScore: GenesisParticipationScore,
 			Message:            "",
@@ -190,23 +201,12 @@ var (
 			AccountAddressType: 0,
 			AccountAddress:     "ZBC_OM2IYFEE_K2I43AFT_JQ6YQGY7_7743MPB5_VCTLJICH_B3SQZITH_OIMIACG3",
 			AccountBalance:     0,
-			// ZNK_QZWZXKBU_O7ZRMKWE_OLAKCKAA_F62EW6N2_CHCBPWQS_ZYNNLWCK_I4NB4XCU
-			NodePublicKey: []byte{134, 109, 155, 168, 52, 119, 243, 22, 42, 196, 114, 192, 161, 40, 0, 47, 180, 75, 121,
-				186, 17, 196, 23, 218, 18, 206, 26, 213, 216, 74, 71, 26},
+			// ZNK_HEXNZPLX_DR5CYPAW_IVWM4WCV_QCBGGAG7_SXP7DGO7_6IDCRWG3_3OLSG2B3
+			NodePublicKey: []byte{57, 46, 220, 189, 119, 28, 122, 44, 60, 22, 69, 108, 206, 88, 85, 128, 130, 99, 0,
+				223, 149, 223, 241, 153, 223, 242, 6, 40, 216, 219, 219, 151},
 			LockedBalance:      0,
 			ParticipationScore: GenesisParticipationScore,
 			Message:            "",
-		},
-		{
-			AccountAddressType: 0,
-			AccountAddress:     "ZBC_52X5ZBD7_7IX2GSXY_RDPA4M7L_N6NFA655_R4UV5I7M_3QMIVHQM_63LQVWYV",
-			AccountBalance:     0,
-			// ZNK_3KGE4YXR_FD7D4F73_4GRRBLTZ_FSNWGQXR_O2UX5OOR_GBCMSURM_FO75ZKDR
-			NodePublicKey: []byte{218, 140, 78, 98, 241, 40, 254, 62, 23, 251, 225, 163, 16, 174, 121, 44, 155, 99, 66, 241, 118, 169, 126,
-				185, 209, 48, 68, 201, 82, 44, 43, 191},
-			LockedBalance:      0,
-			ParticipationScore: GenesisParticipationScore,
-			Message:            "ZBC raspi 01",
 		},
 	}
 )
