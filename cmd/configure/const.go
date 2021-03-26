@@ -91,15 +91,6 @@ var (
 		"n8.beta.proofofparticipation.network:8002",
 		"n9.beta.proofofparticipation.network:8002",
 		"n10.beta.proofofparticipation.network:8002",
-		"n11.beta.proofofparticipation.network:8002",
-		"n12.beta.proofofparticipation.network:8002",
-		"n13.beta.proofofparticipation.network:8002",
-		"n14.beta.proofofparticipation.network:8002",
-		"n15.beta.proofofparticipation.network:8002",
-		"n16.beta.proofofparticipation.network:8002",
-		"n17.beta.proofofparticipation.network:8002",
-		"n18.beta.proofofparticipation.network:8002",
-		"n19.beta.proofofparticipation.network:8002",
 	}
 	alpha = []string{
 		"n0.alpha.proofofparticipation.network:8001",
