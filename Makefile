@@ -1,3 +1,4 @@
+GOPATH := $(HOME)/go
 BIN_DIR := $(GOPATH)/bin
 GOLANGCILINT := $(BIN_DIR)/golangci-lint
 GOLANGCILINT_VERSION := v1.23.8
