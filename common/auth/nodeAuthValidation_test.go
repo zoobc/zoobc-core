@@ -51,9 +51,11 @@ package auth
 
 import (
 	"database/sql"
-	"github.com/zoobc/zoobc-core/common/crypto"
+	"strconv"
 	"testing"
 	"time"
+
+	"github.com/zoobc/zoobc-core/common/crypto"
 
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/zoobc/zoobc-core/common/chaintype"
@@ -140,7 +142,7 @@ func TestProofOfOwnershipValidation_ValidateProofOfOwnership(t *testing.T) {
 		Timestamp:            1562806389280,
 		BlockSeed:            []byte{},
 		BlockSignature:       []byte{},
-		CumulativeDifficulty: string(100000000),
+		CumulativeDifficulty: strconv.Itoa(100000000),
 		PayloadLength:        0,
 		PayloadHash:          []byte{0, 0, 0, 1},
 		BlocksmithPublicKey:  nodePubKey1,
