@@ -566,6 +566,8 @@ github.com/zoobc/lib v0.0.0-20200611035436-693560334368 h1:BnkLmnoTPvU++nafNQoMz
 github.com/zoobc/lib v0.0.0-20200611035436-693560334368/go.mod h1:3CpFOlNJWK4JKKd2pIOdQ31j2xrGE2LmNshX5CSqguY=
 github.com/zoobc/lib v0.0.0-20201229063526-29e903f3c86e h1:/XpsAK3Rt6tzrYY8msn3cDW1R9T71UBFFW8pootnE/g=
 github.com/zoobc/lib v0.0.0-20201229063526-29e903f3c86e/go.mod h1:3CpFOlNJWK4JKKd2pIOdQ31j2xrGE2LmNshX5CSqguY=
+github.com/zoobc/xgo v0.0.0-20200319082328-7a22160bb822 h1:vxGHKkjt14gY1Wh9a1W+sR/lAOAMdxCH3oMQgyq0Cyo=
+github.com/zoobc/xgo v0.0.0-20200319082328-7a22160bb822/go.mod h1:7fUVTXGTJvHfyLNRzXg8nlX8Yvrl8iuYycpLgN0LuwQ=
 github.com/zoobc/zed25519 v0.0.0-20200918091259-7d865ec564f1 h1:T452Dv9yVl2HVbtlIDlr+lynwkQtX2a5CyiUvsZPCbo=
 github.com/zoobc/zed25519 v0.0.0-20200918091259-7d865ec564f1/go.mod h1:xCwQiVhAlfsV3oiGVHlCC4nbV/emMk4QxkAzyGQGaD8=
 github.com/zoobc/zed25519 v0.0.0-20201229064044-bb9b9f10fe72 h1:dP/iMTAWwRm7/yvWHni2I3YMASze+w2S9pfZpU8SgOU=

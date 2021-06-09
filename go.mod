@@ -46,6 +46,7 @@ require (
 	github.com/ugorji/go/codec v1.2.3
 	github.com/xordataexchange/crypt v0.0.3-0.20170626215501-b2862e3d0a77 // indirect
 	github.com/zoobc/lib v0.0.0-20201229063526-29e903f3c86e
+	github.com/zoobc/xgo v0.0.0-20200319082328-7a22160bb822 // indirect
 	github.com/zoobc/zed25519 v0.0.0-20201229064044-bb9b9f10fe72
 	github.com/zoobc/zoo-slip10 v0.0.0-20201229072901-721109b5d175
 	golang.org/x/crypto v0.0.0-20201221181555-eec23a3978ad
