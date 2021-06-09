@@ -54,6 +54,7 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
+	"strconv"
 	"testing"
 
 	"github.com/zoobc/zoobc-core/common/chaintype"
@@ -89,7 +90,7 @@ var (
 		Timestamp:            1562806389280,
 		BlockSeed:            []byte{},
 		BlockSignature:       []byte{},
-		CumulativeDifficulty: string(100000000),
+		CumulativeDifficulty: strconv.Itoa(100000000),
 		PayloadLength:        0,
 		PayloadHash:          []byte{0, 0, 0, 1},
 		BlocksmithPublicKey: []byte{153, 58, 50, 200, 7, 61, 108, 229, 204, 48, 199, 145, 21, 99, 125, 75, 49,
