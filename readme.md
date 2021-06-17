@@ -38,8 +38,8 @@
 
 ### Development
 
-A video tutorial on how to get started on macOS is here: https://www.youtube.com/watch?v=6lXgiyG5gBM
-- Videos for Windows and Linux are in the making
+A video tutorial on how to get started on macOS is here: https://www.youtube.com/watch?v=6lXgiyG5gBM 
+Videos for Windows and Linux are in the making
 
 - clone the repository.
 - Dep user: run `dep ensure -v --vendor-only` to install the dependencies read from Gopkg.toml only.
