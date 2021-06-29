@@ -11,7 +11,7 @@ CORE_OUPUT := $(ZBCPATH)/$(BINARY_CORE_NAME)-$(VERSION)
 CLI_OUPUT := $(ZBCPATH)/$(BINARY_CLI_NAME)-$(VERSION)
 GITHUB_TOKEN ?= $(shell cat github.token)
 genesis := false
-gen-target:= alpha
+gen-target:= develop
 gen-output := resource
 
 .PHONY: test

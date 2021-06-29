@@ -3,14 +3,7 @@
     ZOOBC Core
   </a>
 </h1>
-<p align="center">
-  <a href="https://circleci.com/gh/zoobc/zoobc-core">
-    <img src="https://circleci.com/gh/zoobc/zoobc-core.svg?style=svg&circle-token=cdd770bcb30a201696bb10e76ed15504cf235a9f" alt="CircleCI"/>
-  </a>
-  <a href="#">
-    <img src="./coverage_badge.png" alt="cover badge"/>
-  </a>
-</p>
+
 
 > Zoobc-core is the main node application to run the zoobc blockchain. This repository consist of the main node application and the `command line interface` tools to help with development, which is located in the `cmd/` directory.
 
@@ -49,7 +42,6 @@ Videos for Windows and Linux are in the making
 
 #### Build
 
-To make use of the `Makefile` please rename `github.token.example` to `github.token` and place your github token there. This is required since we are accessing private repository for one of our dependencies.
 
 - ZOOBC CORE
 
@@ -61,7 +53,7 @@ To make use of the `Makefile` please rename `github.token.example` to `github.to
   - linux (386 & amd64): `make VERSION=v1.10.1 core-linux`
   - windows (32 & 64bit): `make VERSION=v1.10.1 core-windows`
   - common os (darwin, linux, windows) : `make VERSION=v1.10.1 core-common-os`
-    > With genesis replacement, you can add argument `genesis=true` and what your target is {develop,staging,alhpa(default),local}, like:
+    > With genesis replacement, you can add argument `genesis=true` and what your target is {develop(default),staging,alhpa,local}, like:
     > `make build genesis=true gen-target=develop gen-output=dist` for the local target you need create `local.preRegisteredNodes.json`.
 
 - ZOOBC CMD
