@@ -1,3 +1,4 @@
+GOPATH := $(HOME)/go
 BIN_DIR := $(GOPATH)/bin
 GOLANGCILINT := $(BIN_DIR)/golangci-lint
 GOLANGCILINT_VERSION := v1.23.8
@@ -10,7 +11,7 @@ CORE_OUPUT := $(ZBCPATH)/$(BINARY_CORE_NAME)-$(VERSION)
 CLI_OUPUT := $(ZBCPATH)/$(BINARY_CLI_NAME)-$(VERSION)
 GITHUB_TOKEN ?= $(shell cat github.token)
 genesis := false
-gen-target:= alpha
+gen-target:= develop
 gen-output := resource
 
 .PHONY: test
@@ -29,7 +30,7 @@ $(XGO):
 .PHONY: golangci-lint
 golangci-lint: $(GOLANGCILINT)
 	$(info    running linter...)
-	golangci-lint run --timeout=20m -v
+	$(BIN_DIR)/golangci-lint run --timeout=20m -v
 
 .PHONY: go-fmt
 go-fmt:
@@ -56,56 +57,56 @@ endif
 core-linux: $(XGO)
 	$(info    build core with linux as target...)
 	mkdir -p $(ZBCPATH)
-	xgo --targets=linux/amd64 -out=$(CORE_OUPUT) --go-private=github.com/zoobc/* --github-token=$(GITHUB_TOKEN)  ./
+	$(XGO) --targets=linux/amd64 -out=$(CORE_OUPUT) ./
 
 .PHONY: core-arm
 core-arm: $(XGO)
 	$(info    build core with linux/arm-7 as target...)
 	mkdir -p $(ZBCPATH)
-	xgo --targets=linux/arm-7 -out=$(CORE_OUPUT) --go-private=github.com/zoobc/* --github-token=$(GITHUB_TOKEN)  ./
+	$(XGO) --targets=linux/arm-7 -out=$(CORE_OUPUT) ./
 
 .PHONY: core-windows
 core-windows: $(XGO)
 	$(info    build core with windows as target...)
 	mkdir -p $(ZBCPATH)
-	xgo --targets=windows/* -out=$(CORE_OUPUT) --go-private=github.com/zoobc/* --github-token=$(GITHUB_TOKEN)  ./
+	$(XGO) --targets=windows/* -out=$(CORE_OUPUT) ./
 
 .PHONY: core-darwin
 core-darwin: $(XGO)
 	$(info    build core with darwin/macos as target...)
 	mkdir -p $(ZBCPATH)
-	xgo --targets=darwin/* -out=$(CORE_OUPUT) --go-private=github.com/zoobc/* --github-token=$(GITHUB_TOKEN)  ./
+	$(XGO) --targets=darwin/* -out=$(CORE_OUPUT) ./
 
 .PHONY: cmd-darwin
 cmd-darwin: $(XGO)
 	$(info    build cmd with darwin/macos as target...)
 	mkdir -p $(ZBCPATH)
-	xgo --targets=darwin/* -out=$(CLI_OUPUT) --go-private=github.com/zoobc/* --github-token=$(GITHUB_TOKEN)  ./cmd/
+	$(XGO) --targets=darwin/* -out=$(CLI_OUPUT) ./cmd/
 
 .PHONY: cmd-linux
 cmd-linux: $(XGO)
 	$(info    build cmd with linux as target...)
 	mkdir -p $(ZBCPATH)
-	xgo --targets=linux/amd64 -out=$(CLI_OUPUT) --go-private=github.com/zoobc/* --github-token=$(GITHUB_TOKEN)  ./cmd/
+	$(XGO) --targets=linux/amd64 -out=$(CLI_OUPUT) ./cmd/
 
 .PHONY: cmd-arm
 cmd-arm: $(XGO)
 	$(info    build cmd with linux/arm-7 as target...)
 	mkdir -p $(ZBCPATH)
-	xgo --targets=linux/arm-7 -out=$(CLI_OUPUT) --go-private=github.com/zoobc/* --github-token=$(GITHUB_TOKEN)  ./cmd/
+	$(XGO) --targets=linux/arm-7 -out=$(CLI_OUPUT) ./cmd/
 
 .PHONY: cmd-windows
 cmd-windows: $(XGO)
 	$(info    build cmd with windows as target...)
 	mkdir -p $(ZBCPATH)
-	xgo --targets=windows/* -out=$(CLI_OUPUT) --go-private=github.com/zoobc/* --github-token=$(GITHUB_TOKEN)  ./cmd/
+	$(XGO) --targets=windows/* -out=$(CLI_OUPUT) ./cmd/
 
 
 .PHONY: core-common-os
 core-common-os: $(XGO)
 	$(info    build core with windows, linux & darwin as targets...)
 	mkdir -p $(ZBCPATH)/linux $(ZBCPATH)/windows $(ZBCPATH)/darwin
-	xgo --targets=windows/*,linux/amd64,darwin/amd64 -out=$(CORE_OUPUT) --go-private=github.com/zoobc/* --github-token=$(GITHUB_TOKEN)  ./
+	$(XGO) --targets=windows/*,linux/amd64,darwin/amd64 -out=$(CORE_OUPUT) ./
 	mv $(CORE_OUPUT)-linux* $(ZBCPATH)/linux/$(BINARY_CORE_NAME)
 	mv $(CORE_OUPUT)-windows*386.exe $(ZBCPATH)/windows/$(BINARY_CORE_NAME)-32bit.exe
 	mv $(CORE_OUPUT)-windows*amd64.exe $(ZBCPATH)/windows/$(BINARY_CORE_NAME)-64bit.exe
@@ -115,7 +116,7 @@ core-common-os: $(XGO)
 cmd-common-os: $(XGO)
 	$(info    build cmd with windows, linux & darwin as targets...)
 	mkdir -p $(ZBCPATH)/linux $(ZBCPATH)/windows $(ZBCPATH)/darwin
-	xgo --targets=windows/*,linux/amd64,darwin/amd64 -out=$(CLI_OUPUT) --go-private=github.com/zoobc/* --github-token=$(GITHUB_TOKEN)  ./cmd/
+	$(XGO) --targets=windows/*,linux/amd64,darwin/amd64 -out=$(CLI_OUPUT) ./cmd/
 	mv $(CLI_OUPUT)-linux* $(ZBCPATH)/linux/$(BINARY_CLI_NAME)
 	mv $(CLI_OUPUT)-windows*386.exe $(ZBCPATH)/windows/$(BINARY_CLI_NAME)-32bit.exe
 	mv $(CLI_OUPUT)-windows*amd64.exe $(ZBCPATH)/windows/$(BINARY_CLI_NAME)-64bit.exe

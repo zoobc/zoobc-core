@@ -40,3 +40,5 @@ resource/templates/mainnet*
 
 *.db-shm
 *.db-wal
+
+Makefile.orig

@@ -299,6 +299,8 @@ github.com/julienschmidt/httprouter v1.1.1-0.20170430222011-975b5c4c7c21/go.mod 
 github.com/julienschmidt/httprouter v1.2.0/go.mod h1:SYymIcj16QtmaHHD7aYtjjsJG7VTCxuUUipMqKk8s4w=
 github.com/julienschmidt/httprouter v1.3.0/go.mod h1:JR6WtHb+2LUe8TCKY3cZOxFyyO8IZAc4RVcycCCAKdM=
 github.com/karalabe/usb v0.0.0-20190919080040-51dc0efba356/go.mod h1:Od972xHfMJowv7NGVDiWVxk2zxnWgjLlJzE+F4F7AGU=
+github.com/karalabe/xgo v0.0.0-20191115072854-c5ccff8648a7 h1:AYzjK/SHz6m6mg5iuFwkrAhCc14jvCpW9d6frC9iDPE=
+github.com/karalabe/xgo v0.0.0-20191115072854-c5ccff8648a7/go.mod h1:iYGcTYIPUvEWhFo6aKUuLchs+AV4ssYdyuBbQJZGcBk=
 github.com/kisielk/errcheck v1.1.0/go.mod h1:EZBBE59ingxPouuu3KfxchcWSUPOHkagtvWXihfKN4Q=
 github.com/kisielk/gotool v1.0.0/go.mod h1:XhKaO+MFFWcvkIS/tQcRk01m1F5IRFswLeQ+oQHNcck=
 github.com/kkdai/bstream v0.0.0-20161212061736-f391b8402d23/go.mod h1:J+Gs4SYgM6CZQHDETBtE9HaSEkGmuNXF86RwHhHUvq4=
@@ -566,6 +568,8 @@ github.com/zoobc/lib v0.0.0-20200611035436-693560334368 h1:BnkLmnoTPvU++nafNQoMz
 github.com/zoobc/lib v0.0.0-20200611035436-693560334368/go.mod h1:3CpFOlNJWK4JKKd2pIOdQ31j2xrGE2LmNshX5CSqguY=
 github.com/zoobc/lib v0.0.0-20201229063526-29e903f3c86e h1:/XpsAK3Rt6tzrYY8msn3cDW1R9T71UBFFW8pootnE/g=
 github.com/zoobc/lib v0.0.0-20201229063526-29e903f3c86e/go.mod h1:3CpFOlNJWK4JKKd2pIOdQ31j2xrGE2LmNshX5CSqguY=
+github.com/zoobc/xgo v0.0.0-20200319082328-7a22160bb822 h1:vxGHKkjt14gY1Wh9a1W+sR/lAOAMdxCH3oMQgyq0Cyo=
+github.com/zoobc/xgo v0.0.0-20200319082328-7a22160bb822/go.mod h1:7fUVTXGTJvHfyLNRzXg8nlX8Yvrl8iuYycpLgN0LuwQ=
 github.com/zoobc/zed25519 v0.0.0-20200918091259-7d865ec564f1 h1:T452Dv9yVl2HVbtlIDlr+lynwkQtX2a5CyiUvsZPCbo=
 github.com/zoobc/zed25519 v0.0.0-20200918091259-7d865ec564f1/go.mod h1:xCwQiVhAlfsV3oiGVHlCC4nbV/emMk4QxkAzyGQGaD8=
 github.com/zoobc/zed25519 v0.0.0-20201229064044-bb9b9f10fe72 h1:dP/iMTAWwRm7/yvWHni2I3YMASze+w2S9pfZpU8SgOU=

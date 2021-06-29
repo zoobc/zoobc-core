@@ -50,10 +50,11 @@
 package strategy
 
 import (
+	"sync"
+
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/util"
 	p2pUtil "github.com/zoobc/zoobc-core/p2p/util"
-	"sync"
 )
 
 type (
@@ -80,7 +81,7 @@ func (ps *PeerStrategyHelper) GetRandomPeerWithoutRepetition(peers map[string]*m
 	)
 	randomIdx := uint64(util.GetSecurePositiveRandom()) % uint64(len(peers))
 	for _, knownPeer := range peers {
-		if idx == randomIdx {
+		if uint64(idx) == randomIdx {
 			peer = knownPeer
 			break
 		}

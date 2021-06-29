@@ -311,7 +311,7 @@ func (ns *NativeStrategy) GetAnyResolvedPeer() *model.Peer {
 	}
 	var idx uint64
 	for _, peer := range resolvedPeers {
-		if idx == randomIdx {
+		if uint64(idx) == randomIdx {
 			return peer
 		}
 		idx++
@@ -368,7 +368,7 @@ func (ns *NativeStrategy) GetAnyUnresolvedPeer() *model.Peer {
 	randomIdx := uint64(util.GetSecurePositiveRandom()) % uint64(len(unresolvedPeers))
 	var idx uint64
 	for _, peer := range unresolvedPeers {
-		if idx == randomIdx {
+		if uint64(idx) == randomIdx {
 			return peer
 		}
 		idx++
@@ -496,7 +496,7 @@ func (ns *NativeStrategy) GetAnyKnownPeer() *model.Peer {
 	randomIdx := uint64(util.GetSecurePositiveRandom()) % uint64(len(knownPeers))
 	var idx uint64
 	for _, peer := range knownPeers {
-		if idx == randomIdx {
+		if uint64(idx) == randomIdx {
 			return peer
 		}
 		idx++

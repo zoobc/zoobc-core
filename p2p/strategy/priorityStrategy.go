@@ -974,7 +974,7 @@ func (ps *PriorityStrategy) GetAnyResolvedPeer() *model.Peer {
 	}
 	var idx uint64
 	for _, peer := range ps.NodeConfigurationService.GetHost().ResolvedPeers {
-		if idx == randomIdx {
+		if uint64(idx) == randomIdx {
 			return peer
 		}
 		idx++
@@ -1109,7 +1109,7 @@ func (ps *PriorityStrategy) GetAnyUnresolvedPeer() *model.Peer {
 	randomIdx := uint64(util.GetSecurePositiveRandom()) % uint64(len(unresolvedPeers))
 	var idx uint64
 	for _, peer := range unresolvedPeers {
-		if idx == randomIdx {
+		if uint64(idx) == randomIdx {
 			return peer
 		}
 		idx++
@@ -1313,7 +1313,7 @@ func (ps *PriorityStrategy) GetAnyKnownPeer() *model.Peer {
 	randomIdx := uint64(util.GetSecurePositiveRandom()) % uint64(len(knownPeers))
 	var idx uint64
 	for _, peer := range knownPeers {
-		if idx == randomIdx {
+		if uint64(idx) == randomIdx {
 			return peer
 		}
 		idx++

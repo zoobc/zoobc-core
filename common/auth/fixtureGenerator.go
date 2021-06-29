@@ -50,6 +50,8 @@
 package auth
 
 import (
+	"strconv"
+
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/crypto"
 	"github.com/zoobc/zoobc-core/common/model"
@@ -70,7 +72,7 @@ var (
 		Timestamp:            1562806389280,
 		BlockSeed:            []byte{},
 		BlockSignature:       []byte{},
-		CumulativeDifficulty: string(100000000),
+		CumulativeDifficulty: strconv.Itoa(100000000),
 		PayloadLength:        0,
 		PayloadHash:          []byte{},
 		BlocksmithPublicKey:  nodePubKey1,
