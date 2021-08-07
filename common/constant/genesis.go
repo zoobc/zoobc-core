@@ -73,12 +73,8 @@ type (
 )
 
 var (
-<<<<<<<<< Temporary merge branch 1
-	ApplicationCodeName            = "zoobc-alpha"
-=========
-	ApplicationCodeName            = "ZBC_test"
->>>>>>>>> Temporary merge branch 2
-	ApplicationVersion             = "1.0.0"
+	ApplicationCodeName            = "ZBC_mainnet"
+	ApplicationVersion             = "1.1.0"
 	MainchainGenesisBlocksmithID   = []byte{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1}
 	MainchainGenesisBlockSignature = []byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}
@@ -2323,6 +2319,105 @@ var (
 			ParticipationScore: GenesisParticipationScore,
 			Message:            "",
 			Notes:              "refer to ERC721 registration of ID 1000",
+		},
+		{
+			AccountAddressType: 0,
+			AccountAddress:     "ZBC_467RN5T4_K7P3GGBC_MEO5U6AI_3QIN5X35_YZ5ZUOGH_DYA4MI2Z_3JMWD3EX",
+			AccountBalance:     0,
+			// ZNK_XIBDL2XZ_UYL4PJBT_WUAQHGF2_B4OWQNU3_KN7G5J4B_VPSHWTHI_K7TEMR5F
+			NodePublicKey: []byte{186, 2, 53, 234, 249, 166, 23, 199, 164, 51, 181, 1, 3, 152, 186, 15, 29, 104, 54,
+				155, 83, 126, 110, 167, 129, 171, 228, 123, 76, 232, 87, 230},
+			LockedBalance:      0,
+			ParticipationScore: GenesisParticipationScore,
+			Message:            "I wonder if Vitalik is between the owners of a ZooBC Genesis Block Account and runs a node",
+		},
+		{
+			AccountAddressType: 0,
+			AccountAddress:     "ZBC_AVJSG2GC_CHM7OLOJ_R7FWRSNU_VBM7HZGP_S6BNDMLN_HAO2M26E_IIWHPPEM",
+			AccountBalance:     0,
+			// ZNK_JV4C2CHG_TRSG7VYS_IWQMB33W_KIVXK7G5_Y2DXJ6JW_DGFZQNAD_7MFHESFC
+			NodePublicKey: []byte{77, 120, 45, 8, 230, 156, 100, 111, 215, 18, 69, 160, 192, 239, 118, 82, 43, 117, 124,
+				221, 198, 135, 116, 249, 54, 25, 139, 152, 52, 3, 251, 10},
+			LockedBalance:      0,
+			ParticipationScore: GenesisParticipationScore,
+			Message:            "This to Mr Kim Dotcom victim of abuse by Murika and creator of some amazing crypto solutions",
+		},
+		{
+			AccountAddressType: 0,
+			AccountAddress:     "ZBC_E26BY7SZ_FV5UAHUD_2HCS7VMW_3SZD4MRW_HU5WHTC6_S4FKYFQA_4USAVGTY",
+			AccountBalance:     0,
+			// ZNK_Y3HAG5M4_Q7QMKSWK_6AP4FY6F_6L3NBUBT_3VLLLVRR_DOX5CEI6_3BV4GR5F
+			NodePublicKey: []byte{198, 206, 3, 117, 156, 135, 224, 197, 74, 202, 240, 31, 194, 227, 197, 242, 246, 208, 208,
+				51, 221, 86, 181, 214, 49, 27, 175, 209, 17, 30, 216, 107},
+			LockedBalance:      0,
+			ParticipationScore: GenesisParticipationScore,
+			Message:            "Getting a ZooBC Genesis Block Account has been one hundred percent the best thing I did with crypto",
+		},
+		{
+			AccountAddressType: 0,
+			AccountAddress:     "ZBC_HBENIYGW_AWBRCKGQ_SY5BRR7G_2QB52D4C_Z24MYYKR_PFE5RV5L_5H3OXRX5",
+			AccountBalance:     0,
+			// ZNK_45B7MH5T_UXQNUVCX_H45AVN2R_FFJZ7WLH_CUWCVVPT_YSVXX2KS_7QA327MZ
+			NodePublicKey: []byte{231, 67, 246, 31, 179, 165, 224, 218, 84, 87, 63, 58, 10, 183, 81, 41, 83, 159, 217,
+				103, 21, 44, 42, 213, 243, 196, 171, 123, 233, 82, 252, 1},
+			LockedBalance:      0,
+			ParticipationScore: GenesisParticipationScore,
+			Message:            "We all are Satoshi Nakamoto Except Craig Wright He is NOT Satoshi Nakamoto",
+		},
+		{
+			AccountAddressType: 0,
+			AccountAddress:     "ZBC_5VTTYCZN_ZQV3EPKY_OYYYDHN3_LLTV6U4Q_PRYCH4YT_HJYP6V6D_EWPKPSS4",
+			AccountBalance:     0,
+			// ZNK_PHWAB7GM_O3SQIYVC_YSU3JAXX_S53SNU4Z_2SOGGHTN_RKGSNVCQ_KEDH6FO2
+			NodePublicKey: []byte{121, 236, 0, 252, 204, 118, 229, 4, 98, 162, 196, 169, 180, 130, 247, 151, 119, 38, 211,
+				153, 212, 156, 99, 30, 109, 138, 141, 38, 212, 80, 81, 6},
+			LockedBalance:      0,
+			ParticipationScore: GenesisParticipationScore,
+			Message:            "earth",
+		},
+		{
+			AccountAddressType: 0,
+			AccountAddress:     "ZBC_DRPP53YA_VFLWPFVB_S2PKNJPF_U7OHOR6E_3TMDTVY4_M2ME6ZB2_V2J4FITF",
+			AccountBalance:     0,
+			// ZNK_UOGEUQLN_LSCJVSRM_3RH6PALC_CCPB66H4_OIBUZSXD_7HZDHNGO_7KQAFFDV
+			NodePublicKey: []byte{163, 140, 74, 65, 109, 92, 132, 154, 202, 44, 220, 79, 231, 129, 98, 16, 158, 31, 120,
+				252, 114, 3, 76, 202, 227, 249, 242, 51, 180, 206, 250, 160},
+			LockedBalance:      0,
+			ParticipationScore: GenesisParticipationScore,
+			Message:            "If you dont believe it or dont get it I dont have the time to try to convince you Satoshi Nakamoto",
+		},
+		{
+			AccountAddressType: 0,
+			AccountAddress:     "ZBC_X2XLOHT4_6ZC3JQCQ_HZ7MG33H_63JP56CZ_JDYPYYAB_PKX4LRXJ_HK2YHCKK",
+			AccountBalance:     0,
+			// ZNK_DJPMVVE6_BDDZXCKU_PWMVFG2Y_P5TLDGPL_6CNVU3KM_YOOAYLI4_CIEI7I7E
+			NodePublicKey: []byte{26, 94, 202, 212, 158, 8, 199, 155, 137, 84, 125, 153, 82, 155, 88, 127, 102, 177, 153,
+				235, 240, 155, 90, 109, 76, 195, 156, 12, 45, 28, 18, 8},
+			LockedBalance:      0,
+			ParticipationScore: GenesisParticipationScore,
+			Message:            "041 has been the area code of my childhood and teens years May this ZooBC node grow as well as I did",
+		},
+		{
+			AccountAddressType: 0,
+			AccountAddress:     "ZBC_2FUBFP6T_ILFGMM2D_DHA5J3IE_JUFY2RPW_LVVOJBAB_M7XEBVYI_B527KOJG",
+			AccountBalance:     0,
+			// ZNK_5EOY6EX2_PZ3YTIPE_ZGILCDSM_N4ALG2HV_TIWG4IAO_LQH4SEEG_5JYKBCDK
+			NodePublicKey: []byte{233, 29, 143, 18, 250, 126, 119, 137, 161, 228, 201, 144, 177, 14, 76, 111, 0, 179, 104,
+				245, 154, 44, 110, 32, 14, 92, 15, 201, 16, 134, 234, 112},
+			LockedBalance:      0,
+			ParticipationScore: GenesisParticipationScore,
+			Message:            "In memory of Aaron Hillel Swartz 1986 2013",
+		},
+		{
+			AccountAddressType: 0,
+			AccountAddress:     "ZBC_5VZJZAUA_ROOEB5WR_F3UTV4W6_H5GZHN6V_FDQTQ4RS_BTDYJQAV_FGZDY5KC",
+			AccountBalance:     0,
+			// ZNK_Y2VRHZYZ_AZVFR2GH_MMXDW5WF_GFZR76YC_CWNEJEBI_WLEVJJBJ_TDFI4VC6
+			NodePublicKey: []byte{198, 171, 19, 231, 25, 6, 106, 88, 232, 199, 99, 46, 59, 118, 197, 49, 115, 31, 251,
+				2, 21, 154, 68, 144, 40, 178, 201, 84, 164, 41, 152, 202},
+			LockedBalance:      0,
+			ParticipationScore: GenesisParticipationScore,
+			Message:            "Year 2025 a ZBC is worth 3 BTC as USD is not used anymore and ETH has been abandoned due to high fee",
 		},
 	}
 )
