@@ -155,8 +155,8 @@ func NewPeerServiceClient(
 			conn, err := grpc.Dial(
 				p2pUtil.GetFullAddressPeer(destinationPeer),
 				grpc.WithDefaultCallOptions(
-					grpc.MaxCallRecvMsgSize(64 * 1024 * 1024),
-					grpc.MaxCallSendMsgSize(64 * 1024 * 1024)),
+					grpc.MaxCallRecvMsgSize(64*1024*1024),
+					grpc.MaxCallSendMsgSize(64*1024*1024)),
 				grpc.WithInsecure(),
 				grpc.WithUnaryInterceptor(interceptor.NewClientInterceptor(
 					logger,
